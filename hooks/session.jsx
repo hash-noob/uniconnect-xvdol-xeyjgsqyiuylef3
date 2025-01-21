@@ -1,6 +1,5 @@
-import { useContext, createContext, useState, Children, useEffect } from 'react'
+import { useContext, createContext, useState, useEffect } from 'react'
 import * as SecureStore from 'expo-secure-store'
-import { warmUpAsync } from 'expo-web-browser';
 
 const AuthContext = createContext(
     {
@@ -12,9 +11,8 @@ const AuthContext = createContext(
     }
 );
 
-const useSession = async ()=>{
+const useSession =  ()=>{
     const value = useContext(AuthContext)
-    await checkLocal()
     if(!value){
         throw new Error('useSession must be wrapped in a <SessionProvider />');
     }
@@ -22,13 +20,6 @@ const useSession = async ()=>{
 }
 
 //checks if the credentials are available locally
-async function checkLocal(){
-    const value = await SecureStore.getItemAsync('userToken');
-    if(!value)  return false;
-
-    await signIn(value)
-    return true;
-}
 
 const SessionProvider = ({children})=>{
     const [session,setSession] = useState(null)
@@ -68,7 +59,6 @@ const SessionProvider = ({children})=>{
                     user : {email,password}
                 }
             }
-
             if (response.data.success) {
               const user = response.data.user;
               // Store the session details in local storage

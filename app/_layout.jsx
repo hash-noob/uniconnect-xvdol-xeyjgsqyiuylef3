@@ -1,38 +1,14 @@
-import { Redirect, Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import 'react-native-reanimated';
+import { Stack } from 'expo-router';
+import { SessionProvider } from '@/hooks/session';
 
-import { SessionProvider,useSession } from '@/hooks/session';
-
-SplashScreen.preventAutoHideAsync();
-
-export default function RootLayout() {
-
-  const {session,isLoading} = useSession()
-
-  if(!session){
-    return <Redirect href="/sign-in" />
-  }
-
-  useEffect(() => {
-    if (!isLoading) {
-      SplashScreen.hideAsync();
-    }
-  }, [isLoading]);
-
-  if (isLoading) {
-    return null;
-  }
-
+export default function Root() {
+  console.log("hello from root")
   return (
     <SessionProvider>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
+       <Stack>
+            <Stack.Screen name="(root)" options={{ headerShown : false}} />
+            <Stack.Screen name="+not-found"/>
+       </Stack>
     </SessionProvider>
   );
 }
