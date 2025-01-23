@@ -30,9 +30,10 @@ const SessionProvider = ({children})=>{
          () => {
             const wrapper = async ()=>{
                 try{
+                    console.log("Chcecking for credentials")
                 const value = await SecureStore.getItemAsync('userToken');
                 if(!value)  return;
-                setSession(value);
+                    setSession(JSON.parse(value));
                 }
                 catch(error){
                     console.log(error)
@@ -64,7 +65,9 @@ const SessionProvider = ({children})=>{
               // Store the session details in local storage
               setSession(user);
               // Storing the credentials to local device
-              await SecureStore.setItemAsync('userToken',{ email ,password })
+                const credentials = JSON.stringify({email,password})
+                console.log("credentials string: "+credentials)
+              await SecureStore.setItemAsync('userToken',credentials)
               setError(null)
               return true;
             } else {
