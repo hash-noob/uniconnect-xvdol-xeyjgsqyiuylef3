@@ -5,6 +5,7 @@ export default function Layout() {
     <Stack>
       <Stack.Screen name="index" options={{ headerShown : false}} />
       <Stack.Screen name="markAttendance" options={{ headerShown : false}} />
+      <Stack.Screen name="notice" options={{ headerShown : false}} />
     </Stack>
   );
 }
