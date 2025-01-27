@@ -67,7 +67,10 @@ const SessionProvider = ({children})=>{
               // Storing the credentials to local device
                 const credentials = JSON.stringify({email,password})
                 console.log("credentials string: "+credentials)
-              await SecureStore.setItemAsync('userToken',credentials)
+                console.log(user)
+                await SecureStore.setItemAsync('userId', user.id)
+                await SecureStore.setItemAsync('email', user.email)
+            //   await SecureStore.setItemAsync('userToken',user)
               setError(null)
               return { success: true };
             } else {
