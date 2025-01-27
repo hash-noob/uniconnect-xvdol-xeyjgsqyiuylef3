@@ -1,7 +1,7 @@
 import { Drawer } from 'expo-router/drawer';
 import { DrawerContentScrollView,DrawerItemList,DrawerItem } from '@react-navigation/drawer';
 import { View,TouchableOpacity,Text,StyleSheet } from 'react-native';
-import { Redirect,SplashScreen } from 'expo-router';
+import { Redirect,router,SplashScreen } from 'expo-router';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { useEffect } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -82,7 +82,8 @@ export default function RootLayout() {
               drawerLabel: 'Home',
               title: 'Attendance',
               drawerInactiveBackgroundColor:'#1a1a1a',
-              headerRight: ()=> <Ionicons name="notifications-circle" size={45} color="white" />
+              headerRight: ()=> <Ionicons name="notifications-circle" size={45} color="white"
+                                  onPress={ ()=>router.push('/(root)/(tabs)/(dashboard)/notice') } />
             }}
           />
         </Drawer>
