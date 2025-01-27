@@ -1,5 +1,6 @@
 import { useContext, createContext, useState, useEffect } from 'react'
 import axios from 'axios'
+import {url} from '@/constants/AppContants'
 import * as SecureStore from 'expo-secure-store'
 
 const AuthContext = createContext(
@@ -51,29 +52,27 @@ const SessionProvider = ({children})=>{
         setLoading(true)
         try {
             //API call to the backend for authentication
-            const response = await axios.post(`${process.env.EXPO_PUBLIC_DEVICE_IP}/api/auth/login`, {
+            const response = await axios.post(`${url}/api/auth/login`, {
               email,
               password,
             });
             if (response.data.success) {
-              const user = response.data.user;
-              // Store the session details in local storage
-              setSession(user);
-              // Storing the credentials to local device
+                const user = response.data.user;
+                // Store the session details in local storage
+                setSession(user);
+                // Storing the credentials to local device
                 const credentials = JSON.stringify({email,password})
-                console.log("credentials string: "+credentials)
-              await SecureStore.setItemAsync('userToken',credentials)
-              setError(null)
-              return true;
+                await SecureStore.setItemAsync('userToken',credentials)
+                console.log(response.data)
+                setError(null)
+                return true;
             } else {
-              setError('Invalid credentials:'+ response.data.message);
-              console.log('Invalid credentials')
+              setError('Invalid credentials:'+ response.data.message)
               return false;
             }
           } catch (error) {
             setError('Error during sign-in:' + error.message || error);
             console.log(error)
-            console.log(error.request)
             return false;
           }
           finally{
