@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View,Text,TextInput,TouchableOpacity,StyleSheet,} from 'react-native';
+import { View,Text,TextInput,TouchableOpacity,StyleSheet, Alert} from 'react-native';
 import { useSession } from '@/hooks/session';
 import { router } from 'expo-router';
 
@@ -10,12 +10,22 @@ export default function SignInScreen() {
   const {signIn} = useSession()
 
   const handleSignIn = async ()=>{
-      const success = await signIn({email,password});
-      console.log("success:" + success)
-      if(success){
-        console.log("Redirtecting...");
-        router.replace('/')
+      if(!email || !password){
+        Alert.alert('Required', 'Please fill in all fields')
+
       }
+      else{
+        const { success, message } = await signIn({ email, password });
+        console.log("success:" + success)
+        if(success){
+          console.log("Redirtecting...");
+          router.replace('/')
+        }
+        else{
+          console.log('login failed: ', message)
+        }
+      }
+      
   }
 
   return (
