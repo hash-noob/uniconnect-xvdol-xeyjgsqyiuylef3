@@ -1,4 +1,5 @@
 import { useContext, createContext, useState, useEffect } from 'react'
+import { Alert } from 'react-native';
 import axios from 'axios'
 import {url} from '@/constants/AppContants'
 import * as SecureStore from 'expo-secure-store'
@@ -52,28 +53,53 @@ const SessionProvider = ({children})=>{
         setLoading(true)
         try {
             //API call to the backend for authentication
+            console.log(email + " " + password)
             const response = await axios.post(`${url}/api/auth/login`, {
               email,
               password,
             });
-            if (response.data.success) {
-                const user = response.data.user;
-                // Store the session details in local storage
-                setSession(user);
-                // Storing the credentials to local device
+
+            const { success, message, token, user } = response.data;
+            console.log(success + ": " + message)
+            if (success) {
+              // Store the session details in local storage
+              setSession(user);
+              // Storing the credentials to local device
                 const credentials = JSON.stringify({email,password})
-                await SecureStore.setItemAsync('userToken',credentials)
-                console.log(response.data)
-                setError(null)
-                return true;
+                console.log("credentials string: "+credentials)
+              await SecureStore.setItemAsync('userToken',credentials)
+              setError(null)
+              return { success: true };
             } else {
-              setError('Invalid credentials:'+ response.data.message)
-              return false;
+              setError('Invalid credentials:'+ message);
+              console.log('Invalid credentials')
+              return { success: false, message: message || 'Invalid credentials' };
             }
           } catch (error) {
             setError('Error during sign-in:' + error.message || error);
-            console.log(error)
-            return false;
+            // Handle errors based on HTTP status code
+            if (error.response) {
+                const status = error.response.status;
+                console.log(status)
+                //console.error('Error response:', error.response);
+        
+                if (status === 400) {
+                    Alert.alert('Login Failed', 'Email and password are required');
+                } else if (status === 401) {
+                    Alert.alert('Login Failed', 'Invalid email or password');
+                } else if (status === 500) {
+                    Alert.alert('Server Error', 'An internal server error occurred. Please try again later.');
+                } else {
+                    Alert.alert('Error', error.response.data.message || 'An unexpected error occurred.');
+                }
+            } else if (error.request) {
+                console.error('Error request:', error.request);
+                Alert.alert('Network Error', 'Unable to connect to the server. Please check your internet connection.');
+            } else {
+                console.error('Error:', error.message);
+                Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+            }
+            return { success:false, message:error.response.data.message };
           }
           finally{
             setLoading(false)

@@ -11,21 +11,24 @@ export default function SignInScreen() {
 
   const { signIn,error } = useSession();
 
-  const handleSignIn = async () => {
-    if (!email || !password) {
-      Alert.alert('Required', 'Please fill in all fields');
-    } else {
-      const success  = await signIn({ email, password });
-      console.log('success:', success);
-      if (success) {
-        console.log('Redirecting...');
-        router.replace('/');
-      } else {
-        console.log('login failed: ', error);
-        Alert.alert('Login Failed', message || 'Invalid credentials');
+  const handleSignIn = async ()=>{
+      if(!email || !password){
+        Alert.alert('Required', 'Please fill in all fields')
+
       }
-    }
-  };
+      else{
+        const { success, message } = await signIn({ email, password });
+        console.log("success:" + success)
+        if(success){
+          console.log("Redirtecting...");
+          router.replace('/')
+        }
+        else{
+          console.log('login failed: ', message)
+        }
+      }
+      
+  }
 
   return (
     <View style={styles.container}>
