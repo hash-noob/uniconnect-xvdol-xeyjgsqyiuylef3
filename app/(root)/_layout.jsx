@@ -1,6 +1,6 @@
 import { Drawer } from 'expo-router/drawer';
 import { DrawerContentScrollView,DrawerItemList,DrawerItem } from '@react-navigation/drawer';
-import { View,TouchableOpacity,Text,StyleSheet } from 'react-native';
+import { View,TouchableOpacity,Text,StyleSheet, StatusBar } from 'react-native';
 import { Redirect,SplashScreen } from 'expo-router';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { useEffect } from 'react';
@@ -49,6 +49,7 @@ export default function RootLayout() {
   
     return (
       <DrawerContentScrollView {...props} contentContainerStyle={styles.drawerContent} >
+        <StatusBar backgroundColor="#1a1a1a" barStyle="light-content" />
         <DrawerItemList {...props} />
         <View style={styles.logoutContainer}>
           <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>

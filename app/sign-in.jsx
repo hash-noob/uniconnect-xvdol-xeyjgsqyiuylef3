@@ -32,6 +32,7 @@ export default function SignInScreen() {
 
   return (
     <View style={styles.container}>
+      <StatusBar backgroundColor="#1a1a1a" barStyle="light-content" />
       <Text style={styles.title}>Sign In</Text>
 
       <TextInput
