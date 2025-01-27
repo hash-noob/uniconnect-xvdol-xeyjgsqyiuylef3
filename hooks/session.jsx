@@ -1,4 +1,5 @@
 import { useContext, createContext, useState, useEffect } from 'react'
+import axios from 'axios'
 import * as SecureStore from 'expo-secure-store'
 
 const AuthContext = createContext(
@@ -49,17 +50,11 @@ const SessionProvider = ({children})=>{
     const signIn = async ({email, password})=>{
         setLoading(true)
         try {
-            // API call to the backend for authentication
-            // const response = await axios.post(`${process.env.EXPO_PUBLIC_DEVICE_IP}/api/auth/login`, {
-            //   email,
-            //   password,
-            // });
-            const response = {
-                data : {
-                    success : true,
-                    user : {email,password}
-                }
-            }
+            //API call to the backend for authentication
+            const response = await axios.post(`${process.env.EXPO_PUBLIC_DEVICE_IP}/api/auth/login`, {
+              email,
+              password,
+            });
             if (response.data.success) {
               const user = response.data.user;
               // Store the session details in local storage
@@ -78,6 +73,7 @@ const SessionProvider = ({children})=>{
           } catch (error) {
             setError('Error during sign-in:' + error.message || error);
             console.log(error)
+            console.log(error.request)
             return false;
           }
           finally{
