@@ -1,31 +1,80 @@
-import React, { useState } from 'react';
-import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
-import { Button, Text, Card} from 'react-native-paper';
-import {router,usePathname} from 'expo-router';
+import React, { useState, useEffect } from 'react';
+import { View, ScrollView, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { Button, Text, Card } from 'react-native-paper';
+import { router, usePathname } from 'expo-router';
+import axios from 'axios';
+import { url } from '@/constants/AppContants';
 
-const initialState = {
-    currentMonth: 'Nov',
-    schedule: [
-      { time: '10 AM', subject: 'Trigonometry - 1', duration: '10 AM - 11 AM', color: '#2196F3' },
-      { time: '11 AM', subject: 'Physics Lab', duration: '11 AM - 12 PM', color: '#4CAF50' },
-      { time: '12 PM', subject: 'Chemistry', duration: '12 PM - 1 PM', color: '#9C27B0' },
-      { time: '2 PM', subject: 'English', duration: '2 PM - 3 PM', color: '#FFC107' },
-    ],
-    statistics: {
-      total: 60,
-      present: 56,
-      absent: 4
-    }
-  };
 
 const HomeScreen = () => {
-  const { currentMonth, schedule } = initialState
+  const [state, setState] = useState({
+    currentMonth: '',
+    schedule: [],
+    statistics: {
+      total: 60, 
+      present: 56,
+      absent: 4,
+    },
+    loading: true,
+  });
+
+  const user = { id: '67973e6b5eab6a9a0d5ecf4a' }; // Replace this with the actual user ID.
+  const facultyId = user.id;
+
+  const getRandomColor = () => {
+    const colors = ['#2196F3', '#4CAF50', '#9C27B0', '#FFC107', '#FF5722', '#00BCD4'];
+    return colors[Math.floor(Math.random() * colors.length)];
+  };
+
+  useEffect(() => {
+    const fetchSchedule = async () => {
+      try {
+        const response = await axios.get(`${url}/api/faculty/schedule/${facultyId}`);
+        const todaySchedule = response.data.schedule[0].weekly_schedule.find(
+          day => day.day === new Date().toLocaleDateString('en-US', { weekday: 'long' })
+        );
+
+        const formattedSchedule = todaySchedule
+          ? todaySchedule.slots.map(slot => ({
+              time: slot.time,
+              subject: slot.subject_id, 
+              duration: slot.duration,
+              color: getRandomColor(),
+            }))
+          : [];
+
+        setState({
+          currentMonth: new Date().toLocaleString('en-US', { month: 'short' }),
+          schedule: formattedSchedule,
+          statistics: {
+            total: 60, // Replace with real data
+            present: 56, // Replace with real data
+            absent: 4, // Replace with real data
+          },
+          loading: false,
+        });
+      } catch (error) {
+        console.error('Error fetching schedule:', error);
+        setState({ ...state, loading: false });
+      }
+    };
+
+    fetchSchedule();
+  }, [facultyId]);
+
+  const convertTo24Hour = time => {
+    const [hours, minutes, period] = time.match(/(\d+):?(\d+)?\s?(AM|PM)/i).slice(1);
+    let hour = parseInt(hours, 10);
+    if (period.toUpperCase() === 'PM' && hour !== 12) hour += 12;
+    if (period.toUpperCase() === 'AM' && hour === 12) hour = 0;
+    return `${hour.toString().padStart(2, '0')}:${minutes || '00'}`;
+  };
 
   const generateDates = () => {
     const dates = [];
     const today = new Date();
     const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-    
+
     for (let i = -4; i <= 4; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
@@ -38,11 +87,18 @@ const HomeScreen = () => {
     return dates;
   };
 
-  console.log(usePathname())
+  if (state.loading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#2196F3" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <ScrollView>
+        {/* Date Slider */}
         <View style={styles.dateSlider}>
           {generateDates().map((item, index) => (
             <View
@@ -61,29 +117,51 @@ const HomeScreen = () => {
             </View>
           ))}
         </View>
-
-        <Card style={styles.currentPeriod}>
-          <Card.Content>
-            <Text style={styles.periodTitle}>10 AM - 11 AM</Text>
-            <Text style={styles.periodSubject}>Trigonometry - 1</Text>
-            <Pressable>
-            <Button
-              mode="contained"
-              style={styles.markButton}
-              onPress={ ()=>{
-              console.log("Pressed")
-              router.push("./markAttendance", { relativeToDirectory: true })
-            } }
-            >
-              <Text style={styles.markText} >Mark Attendance</Text>
-            </Button>
-            </Pressable>
-          </Card.Content>
-        </Card>
-
+  
+        {/* Current Period */}
+        {state.schedule.length > 0 && (() => {
+          const currentTime = new Date();
+          const currentPeriod = state.schedule.find(item => {
+            const [start, end] = item.duration.split(' - ').map(t => new Date(`1970-01-01T${convertTo24Hour(t)}:00`));
+            return currentTime >= start && currentTime <= end;
+          });
+  
+          if (!currentPeriod) {
+            return (
+              <Card style={styles.currentPeriod}>
+                <Card.Content>
+                  <Text style={styles.periodTitle}>No ongoing period</Text>
+                </Card.Content>
+              </Card>
+            );
+          }
+  
+          return (
+            <Card style={styles.currentPeriod}>
+              <Card.Content>
+                <Text style={styles.periodTitle}>{currentPeriod.duration}</Text>
+                <Text style={styles.periodSubject}>{currentPeriod.subject}</Text>
+                <Pressable>
+                  <Button
+                    mode="contained"
+                    style={styles.markButton}
+                    onPress={() => {
+                      console.log('Pressed');
+                      router.push('./markAttendance', { relativeToDirectory: true });
+                    }}
+                  >
+                    <Text style={styles.markText}>Mark Attendance</Text>
+                  </Button>
+                </Pressable>
+              </Card.Content>
+            </Card>
+          );
+        })()}
+  
+        {/* Full Schedule */}
         <View style={styles.schedule}>
           <Text style={styles.scheduleTitle}>Today's Schedule</Text>
-          {schedule.map((item, index) => (
+          {state.schedule.map((item, index) => (
             <View key={index} style={styles.scheduleItem}>
               <Text style={styles.scheduleTime}>{item.time}</Text>
               <View style={[styles.scheduleCard, { backgroundColor: item.color }]}>
@@ -96,7 +174,8 @@ const HomeScreen = () => {
       </ScrollView>
     </View>
   );
-};
+} 
+
 
 const styles = StyleSheet.create({
   container: {

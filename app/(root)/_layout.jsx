@@ -1,7 +1,7 @@
 import { Drawer } from 'expo-router/drawer';
 import { DrawerContentScrollView,DrawerItemList,DrawerItem } from '@react-navigation/drawer';
-import { View,TouchableOpacity,Text,StyleSheet, StatusBar} from 'react-native';
-import { Redirect,router, SplashScreen } from 'expo-router';
+import { View,TouchableOpacity, StatusBar, Text,StyleSheet } from 'react-native';
+import { Redirect, SplashScreen } from 'expo-router';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { useEffect } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';

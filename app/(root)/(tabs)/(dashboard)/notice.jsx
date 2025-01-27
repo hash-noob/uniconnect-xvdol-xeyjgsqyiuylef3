@@ -10,7 +10,7 @@ import {
   Platform,
   SafeAreaView,
 } from 'react-native';
-import {Picker} from 'react-native-picker/picker'
+import {Picker} from '@react-native-picker/picker'
 
 export default function Notice() {
   const [messages, setMessages] = useState([]);

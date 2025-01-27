@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StatusBar, StyleSheet, Alert } from 'react-native';
 import { useSession } from '@/hooks/session';
 import { TextInput } from 'react-native-paper';
 import { router } from 'expo-router';
