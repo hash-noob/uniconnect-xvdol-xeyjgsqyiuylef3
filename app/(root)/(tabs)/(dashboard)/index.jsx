@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
-import { Button, Text, Card } from 'react-native-paper';
-import { router, usePathname } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
-import axios from 'axios';
 import { url } from '@/constants/AppContants';
-
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import axios from 'axios';
+import { router } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Button, Card, Text } from 'react-native-paper';
 
 const HomeScreen = () => {
-
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); 
   const [filteredSchedule, setFilteredSchedule] = useState([]);
   const [facultyId, setFacultyId] = useState(null);
@@ -22,18 +22,21 @@ const HomeScreen = () => {
     },
     loading: true,
   });
+  const [refreshing, setRefreshing] = useState(false);
+  const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
-    const getUserId = async () => {
-      const userId = await fetchUserId(); // Fetch user ID from SecureStore
-      if (userId) {
-        setFacultyId(userId); // Update state with fetched user ID
+    const fetchUserData = async () => {
+      const role = await SecureStore.getItemAsync('role');
+      const userId = await SecureStore.getItemAsync('userId');
+      setUserRole(role);
+      if (role === 'faculty') {
+        setFacultyId(userId);
       }
     };
-    
-    getUserId(); // Call the function to fetch the user ID
+    fetchUserData();
   }, []);
-  
+
   const todayDate = new Date().toISOString().split('T')[0];
   const colors = ['#2196F3', '#4CAF50', '#9C27B0', '#FFC107', '#FF5722', '#00BCD4', '#FF9800', '#673AB7'];
   let usedColors = [];
@@ -55,64 +58,48 @@ const HomeScreen = () => {
     return color;
   };
 
-  const fetchUserId = async () => {
-    try {
-      const userId = await SecureStore.getItemAsync('userId'); // Ensure the key matches the one used during storage
-      if (userId) {
-        console.log('User ID fetched:', userId);
-        return userId;
-      } else {
-        console.log('No user ID found in SecureStore');
-        return null;
-      }
-    } catch (error) {
-      console.error('Error fetching user ID:', error);
-      return null;
-    }
-  };
-
   useEffect(() => {
-    if (!facultyId) return; // Ensure facultyId is loaded before making the API call
+    if (userRole === 'faculty' && facultyId) {
+      const fetchSchedule = async () => {
+        try {
+          const response = await axios.get(`${url}/api/faculty/schedule/${facultyId}`);
+          const weeklySchedule = response.data.schedule[0].weekly_schedule;
   
-    const fetchSchedule = async () => {
-      try {
-        const response = await axios.get(`${url}/api/faculty/schedule/${facultyId}`);
-        const weeklySchedule = response.data.schedule[0].weekly_schedule;
+          const selectedDayName = new Date(selectedDate).toLocaleDateString('en-US', {
+            weekday: 'long',
+          });
   
-        const selectedDayName = new Date(selectedDate).toLocaleDateString('en-US', {
-          weekday: 'long',
-        });
+          const daySchedule = weeklySchedule.find(day => day.day === selectedDayName);
   
-        const daySchedule = weeklySchedule.find(day => day.day === selectedDayName);
+          const formattedSchedule = daySchedule
+            ? daySchedule.slots.map(slot => ({
+                time: slot.time,
+                subject: slot.subject_id,
+                duration: slot.duration,
+                color: getRandomColor(),
+              }))
+            : [];
   
-        const formattedSchedule = daySchedule
-          ? daySchedule.slots.map(slot => ({
-              time: slot.time,
-              subject: slot.subject_id,
-              duration: slot.duration,
-              color: getRandomColor(),
-            }))
-          : [];
+          setFilteredSchedule(formattedSchedule);
+          setState(state => ({
+            ...state,
+            schedule: formattedSchedule,
+            loading: false,
+          }));
+        } catch (error) {
+          console.error('Error fetching schedule:', error);
+          setFilteredSchedule([]);
+          setState(state => ({
+            ...state,
+            schedule: [],
+            loading: false,
+          }));
+        }
+      };
   
-        setFilteredSchedule(formattedSchedule);
-        setState(state => ({
-          ...state,
-          schedule: formattedSchedule,
-          loading: false,
-        }));
-      } catch (error) {
-        console.error('Error fetching schedule:', error);
-        setFilteredSchedule([]);
-        setState(state => ({
-          ...state,
-          schedule: [],
-          loading: false,
-        }));
-      }
-    };
-  
-    fetchSchedule();
-  }, [selectedDate, facultyId]);
+      fetchSchedule();
+    }
+  }, [selectedDate, facultyId, userRole]);
 
   const convertTo24Hour = time => {
     const [hours, minutes, period] = time.match(/(\d+):?(\d+)?\s?(AM|PM)/i).slice(1);
@@ -146,7 +133,42 @@ const HomeScreen = () => {
     }
     return dates;
   };
-  
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const role = await SecureStore.getItemAsync('role');
+      setUserRole(role);
+      if (role === 'faculty') {
+        const userId = await SecureStore.getItemAsync('userId');
+        setFacultyId(userId);
+      }
+    } catch (error) {
+      console.error('Error refreshing:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
+  if (userRole === 'student') {
+    return (
+      <ScrollView
+        contentContainerStyle={styles.containerCenter}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#2196F3']}
+            tintColor="#2196F3"
+          />
+        }
+      >
+        <Ionicons name="construct" size={150} color="black" />
+        <Text style={styles.developmentText}>Under Development</Text>
+        <Text style={styles.subText}>This feature will be available soon!</Text>
+      </ScrollView>
+    );
+  }
 
   if (state.loading) {
     return (
@@ -157,95 +179,101 @@ const HomeScreen = () => {
   }
 
   return (
-    <View style={styles.container}>
-      <ScrollView>
-        {/* Date Slider */}
-        <View style={styles.dateSlider}>
-          {generateDates().map((item, index) => (
-            <Pressable
-              key={index}
-              onPress={() => {
-                setSelectedDate(item.fullDate); // Update the selected date
-                console.log(`Selected Date: ${item.fullDate}`);
-              }}
+    <ScrollView
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={['#2196F3']}
+          tintColor="#2196F3"
+        />
+      }
+    >
+      {/* Date Slider */}
+      <View style={styles.dateSlider}>
+        {generateDates().map((item, index) => (
+          <Pressable
+            key={index}
+            onPress={() => {
+              setSelectedDate(item.fullDate); // Update the selected date
+              console.log(`Selected Date: ${item.fullDate}`);
+            }}
+            style={[
+              styles.dateItem,
+              item.fullDate === selectedDate && styles.selectedDateItem, // Highlight selected date
+              item.isToday && styles.todayDateItem, // Highlight today's date
+            ]}
+          >
+            <Text
               style={[
-                styles.dateItem,
-                item.fullDate === selectedDate && styles.selectedDateItem, // Highlight selected date
-                item.isToday && styles.todayDateItem, // Highlight today's date
+                styles.dateText,
+                item.fullDate === selectedDate && styles.selectedDateText, // Style for selected date
+                item.isToday && styles.todayDateText, // Style for today
               ]}
             >
-              <Text
-                style={[
-                  styles.dateText,
-                  item.fullDate === selectedDate && styles.selectedDateText, // Style for selected date
-                  item.isToday && styles.todayDateText, // Style for today
-                ]}
-              >
-                {item.day}
-              </Text>
-              <Text
-                style={[
-                  styles.dateText,
-                  item.fullDate === selectedDate && styles.selectedDateText, // Style for selected date
-                  item.isToday && styles.todayDateText, // Style for today
-                ]}
-              >
-                {item.date}
-              </Text>
-            </Pressable>
+              {item.day}
+            </Text>
+            <Text
+              style={[
+                styles.dateText,
+                item.fullDate === selectedDate && styles.selectedDateText, // Style for selected date
+                item.isToday && styles.todayDateText, // Style for today
+              ]}
+            >
+              {item.date}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {/* Horizontal ScrollView for Classes */}
+      {selectedDate === todayDate && state.schedule.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+          {state.schedule.map((item, index) => (
+            <Card key={index} style={styles.classCard}>
+              <Card.Content>
+                <Text style={styles.classTime}>{item.duration}</Text>
+                <Text style={styles.classSubject}>{item.subject}</Text>
+                <Pressable>
+                  <Button
+                    mode="contained"
+                    style={styles.markButton}
+                    onPress={() => {
+                      console.log(`Taking attendance for: ${item.subject}`);
+                      router.push('./markAttendance', { relativeToDirectory: true });
+                    }}
+                  >
+                    <Text style={styles.markText}>Mark Attendance</Text>
+                  </Button>
+                </Pressable>
+              </Card.Content>
+            </Card>
           ))}
-        </View>
-  
-        {/* Horizontal ScrollView for Classes */}
-        {selectedDate === todayDate && state.schedule.length > 0 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-            {state.schedule.map((item, index) => (
-              <Card key={index} style={styles.classCard}>
-                <Card.Content>
-                  <Text style={styles.classTime}>{item.duration}</Text>
-                  <Text style={styles.classSubject}>{item.subject}</Text>
-                  <Pressable>
-                    <Button
-                      mode="contained"
-                      style={styles.markButton}
-                      onPress={() => {
-                        console.log(`Taking attendance for: ${item.subject}`);
-                        router.push('./markAttendance', { relativeToDirectory: true });
-                      }}
-                    >
-                      <Text style={styles.markText}>Mark Attendance</Text>
-                    </Button>
-                  </Pressable>
-                </Card.Content>
-              </Card>
-            ))}
-          </ScrollView>
-        )}
-  
-        {/* Full Schedule */}
-        <View style={styles.schedule}>
-          <Text style={styles.scheduleTitle}>
-            Schedule for {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-          </Text>
-          {filteredSchedule.length > 0 ? (
-            filteredSchedule.map((item, index) => (
-              <View key={index} style={styles.scheduleItem}>
-                <Text style={styles.scheduleTime}>{item.time}</Text>
-                <View style={[styles.scheduleCard, { backgroundColor: item.color }]}>
-                  <Text style={styles.scheduleSubject}>{item.subject}</Text>
-                  <Text style={styles.scheduleDuration}>{item.duration}</Text>
-                </View>
+        </ScrollView>
+      )}
+
+      {/* Full Schedule */}
+      <View style={styles.schedule}>
+        <Text style={styles.scheduleTitle}>
+          Schedule for {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+        </Text>
+        {filteredSchedule.length > 0 ? (
+          filteredSchedule.map((item, index) => (
+            <View key={index} style={styles.scheduleItem}>
+              <Text style={styles.scheduleTime}>{item.time}</Text>
+              <View style={[styles.scheduleCard, { backgroundColor: item.color }]}>
+                <Text style={styles.scheduleSubject}>{item.subject}</Text>
+                <Text style={styles.scheduleDuration}>{item.duration}</Text>
               </View>
-            ))
-          ) : (
-            <Text style={styles.noScheduleText}>No schedule available for this day.</Text>
-          )}
-        </View>
-      </ScrollView>
-    </View>
+            </View>
+          ))
+        ) : (
+          <Text style={styles.noScheduleText}>No schedule available for this day.</Text>
+        )}
+      </View>
+    </ScrollView>
   );  
 } 
-
 
 const styles = StyleSheet.create({
   container: {
@@ -347,29 +375,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5', // Light white color (not pure white)
     borderRadius: 8,
     elevation: 3, // Adds subtle shadow for better visual appearance
+    backgroundColor: 'black',
   },
   classTime: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333', // Same color as scheduleSubject
+    color: '#fff', // Same color as scheduleSubject
     marginBottom: 5,
   },
   classSubject: {
     fontSize: 14,
-    color: '#333', // Same color as scheduleSubject
+    color: '#fff', // Same color as scheduleSubject
     marginBottom: 10,
-  },
-  markButton: {
-    backgroundColor: 'transparent',
-    borderRadius: 25,
-    borderColor: '#000', 
-    borderWidth: 1,
-    padding: 5,
-  },
-  markText: {
-    color: '#000',
-    fontSize: 14,
-    fontWeight: 'bold',
   },
   todayDateItem: {
     backgroundColor: '#2196F3', // Blue background for today's date
@@ -390,6 +407,24 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     marginTop: 20,
+  },
+  containerCenter: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  developmentText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginTop: 20,
+    color: '#333',
+  },
+  subText: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 10,
+    textAlign: 'center',
   },
 });
 

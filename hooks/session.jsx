@@ -68,9 +68,11 @@ const SessionProvider = ({children})=>{
                 const credentials = JSON.stringify({email,password})
                 console.log("credentials string: "+credentials)
                 console.log(user)
+                
                 await SecureStore.setItemAsync('userId', user.id)
                 await SecureStore.setItemAsync('email', user.email)
-            //   await SecureStore.setItemAsync('userToken',user)
+                await SecureStore.setItemAsync('role', user.role)
+                await SecureStore.setItemAsync('userToken', credentials)
               setError(null)
               return { success: true };
             } else {
