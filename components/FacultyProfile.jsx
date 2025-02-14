@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     padding: 10,
     borderRadius: 10,
-    backgroundColor: '#fff',
+    backgroundColor: '#101010',
     elevation: 3,
   },
   loadingContainer: {
@@ -264,4 +264,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'red',
   },
+  value:{
+    marginBottom: 10,
+  }
 });

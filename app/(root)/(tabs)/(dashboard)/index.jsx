@@ -326,6 +326,7 @@ const styles = StyleSheet.create({
   },
   schedule: {
     padding: 16,
+    
   },
   scheduleTitle: {
     color : 'black',
@@ -338,7 +339,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   scheduleTime: {
-    width: 60,
+    width: 65,
     color: '#666',
   },
   scheduleCard: {
