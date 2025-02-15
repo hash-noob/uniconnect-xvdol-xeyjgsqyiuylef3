@@ -20,7 +20,7 @@ const styles = StyleSheet.create({
     margin: 20,
     borderRadius: 10,
     elevation: 4, // Controls the shadow depth
-    width: '90%',
+    width: '100%',
     alignSelf: 'center',
     backgroundColor: '#fff',
   },
