@@ -1,15 +1,56 @@
-import React from "react";
+import { Picker } from "@react-native-picker/picker";
+import React, { useEffect, useState } from "react";
 import { Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 
 export default function WorkModals({
   modalVisible,
   setModalVisible,
   isMarkedDayModal,
-  eventText,
-  setEventText,
+  eventDetails,
   handleMarkDay,
   handleUnmarkDay,
+  handleUpdateEvent,
+  selectedDate,
 }) {
+  const [eventType, setEventType] = useState('other');
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Reset form when modal opens/closes
+  useEffect(() => {
+    if (modalVisible && eventDetails && isEditing) {
+      setTitle(eventDetails.title);
+      setDescription(eventDetails.description);
+      setEventType(eventDetails.type);
+    } else if (!modalVisible) {
+      setTitle('');
+      setDescription('');
+      setEventType('other');
+      setIsEditing(false);
+    }
+  }, [modalVisible, eventDetails, isEditing]);
+
+  const handleSubmit = () => {
+    const eventData = {
+      title,
+      description,
+      type: eventType,
+      date: selectedDate
+    };
+
+    if (isEditing) {
+      handleUpdateEvent({ ...eventData, _id: eventDetails._id });
+    } else {
+      handleMarkDay(eventData);
+    }
+
+    setTitle('');
+    setDescription('');
+    setEventType('other');
+    setIsEditing(false);
+  };
+
   return (
     <Modal
       visible={modalVisible}
@@ -20,42 +61,76 @@ export default function WorkModals({
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
           <Text style={styles.modalTitle}>
-            {isMarkedDayModal ? "Event Details" : "Add New Event"}
+            {isMarkedDayModal ? (isEditing ? "Edit Event" : "Event Details") : "Add New Event"}
           </Text>
 
-          {isMarkedDayModal ? (
-            // Marked day modal content
+          {isMarkedDayModal && !isEditing ? (
+            // View mode for marked day
             <>
-              <Text style={styles.eventText}>{eventText}</Text>
-              <TouchableOpacity
-                style={[styles.button, styles.unmarkButton]}
-                onPress={handleUnmarkDay}
-              >
-                <Text style={styles.buttonText}>Unmark Day</Text>
-              </TouchableOpacity>
+              <Text style={styles.eventLabel}>Title:</Text>
+              <Text style={styles.eventText}>{eventDetails?.title}</Text>
+              <Text style={styles.eventLabel}>Description:</Text>
+              <Text style={styles.eventText}>{eventDetails?.description}</Text>
+              <Text style={styles.eventLabel}>Type:</Text>
+              <Text style={styles.eventText}>{eventDetails?.type}</Text>
+              <View style={styles.buttonGroup}>
+                <TouchableOpacity
+                  style={[styles.button, styles.editButton]}
+                  onPress={() => setIsEditing(true)}
+                >
+                  <Text style={styles.buttonText}>Edit Event</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.button, styles.unmarkButton]}
+                  onPress={handleUnmarkDay}
+                >
+                  <Text style={styles.buttonText}>Delete Event</Text>
+                </TouchableOpacity>
+              </View>
             </>
           ) : (
-            // Unmarked day modal content
+            // Edit/Create mode
             <>
               <TextInput
                 style={styles.input}
-                placeholder="Enter event details"
-                value={eventText}
-                onChangeText={setEventText}
+                placeholder="Event Title"
+                value={title}
+                onChangeText={setTitle}
+              />
+              <TextInput
+                style={[styles.input, styles.descriptionInput]}
+                placeholder="Event Description"
+                value={description}
+                onChangeText={setDescription}
                 multiline
               />
+              <Picker
+                selectedValue={eventType}
+                onValueChange={(itemValue) => setEventType(itemValue)}
+                style={styles.picker}
+              >
+                <Picker.Item label="Class" value="class" />
+                <Picker.Item label="Meeting" value="meeting" />
+                <Picker.Item label="Exam" value="exam" />
+                <Picker.Item label="Other" value="other" />
+              </Picker>
               <TouchableOpacity
                 style={[styles.button, styles.markButton]}
-                onPress={handleMarkDay}
+                onPress={handleSubmit}
               >
-                <Text style={styles.buttonText}>Mark Day</Text>
+                <Text style={styles.buttonText}>
+                  {isEditing ? "Update Event" : "Create Event"}
+                </Text>
               </TouchableOpacity>
             </>
           )}
 
           <TouchableOpacity
             style={[styles.button, styles.cancelButton]}
-            onPress={() => setModalVisible(false)}
+            onPress={() => {
+              setModalVisible(false);
+              setIsEditing(false);
+            }}
           >
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
@@ -91,8 +166,6 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     padding: 10,
     marginBottom: 15,
-    minHeight: 100,
-    textAlignVertical: "top",
   },
   eventText: {
     fontSize: 16,
@@ -126,5 +199,30 @@ const styles = StyleSheet.create({
     color: "#666",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  picker: {
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 5,
+  },
+  descriptionInput: {
+    minHeight: 100,
+  },
+  eventLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 5,
+    color: "#666",
+  },
+  buttonGroup: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  editButton: {
+    backgroundColor: '#2196F3',
+    flex: 1,
+    marginRight: 5,
   },
 }); 

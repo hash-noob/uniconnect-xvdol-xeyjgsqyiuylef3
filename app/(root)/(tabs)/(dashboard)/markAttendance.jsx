@@ -64,7 +64,7 @@ export const MarkAttendance = () => {
               marginBottom: 4,
             }}
           >
-            Trigonometry
+            CS101
           </Text>
           <Text
             variant="bodyMedium"
@@ -73,7 +73,7 @@ export const MarkAttendance = () => {
               marginBottom: 8,
             }}
           >
-            10 AM - 11 AM
+            9 AM - 10 AM
           </Text>
           <View style={[styles.progressBar, { width: `${progress}%` }]} />
         </View>

@@ -1,9 +1,13 @@
 import Card from "@/components/card";
-import WorkModals from "@/components/WorkModals";
+import WorkModals from "@/components/WorkModals.jsx";
+import { url } from "@/constants/AppContants";
 import { MaterialIcons } from "@expo/vector-icons";
+import axios from 'axios';
 import { router } from "expo-router";
-import React, { useState } from "react";
+import * as SecureStore from 'expo-secure-store';
+import React, { useEffect, useState } from "react";
 import {
+  Alert,
   FlatList,
   ScrollView,
   StyleSheet,
@@ -14,12 +18,16 @@ import {
 } from "react-native";
 import { Calendar } from "react-native-calendars";
 
+
 export default function Work() {
   const [selectedDate, setSelectedDate] = useState("");
   const [markedDates, setMarkedDates] = useState({});
   const [modalVisible, setModalVisible] = useState(false);
   const [eventText, setEventText] = useState("");
   const [isMarkedDayModal, setIsMarkedDayModal] = useState(false);
+  const [selectedEventDetails, setSelectedEventDetails] = useState(null);
+  const [events, setEvents] = useState([]);
+  const [userId, setUserId] = useState(null);
   const [assignments, setAssignments] = useState([
     {
       id: "1",
@@ -45,59 +53,197 @@ export default function Work() {
   ]);
   const [leaveReason, setLeaveReason] = useState("");
 
-  // Example of marking dates with events
-  const events = {
-    "2025-03-20": {
-      marked: true,
-      color: "#50cebb",
-      text: "Example Event 1",
-    },
-    "2025-03-25": {
-      marked: true,
-      text: "Example Event 2",
-    },
+  useEffect(() => {
+    const fetchUserId = async () => {
+      const id = await SecureStore.getItemAsync("userId");
+      console.log('Fetched userId:', id);
+      setUserId(id);
+    };
+    fetchUserId();
+  }, []);
+
+  useEffect(() => {
+    if (userId) {
+      console.log('Fetching events with userId:', userId);
+      fetchEvents();
+    }
+  }, [userId]);
+
+  const fetchEvents = async () => {
+    try {
+      console.log('Attempting to fetch events with userId:', userId);
+            
+      const response = await axios.get(`http://10.64.33.126:3000/api/events/67973e6b5eab6a9a0d5ecf4a`);
+      
+      console.log('Response data:', response.data);
+      
+      const fetchedEvents = response.data;
+      
+      if (!Array.isArray(fetchedEvents)) {
+        console.error('Expected array of events, got:', typeof fetchedEvents);
+        return;
+      }
+      
+      if (fetchedEvents.length === 0) {
+        console.log('No events found for this user');
+      }
+      
+      const marked = {};
+      fetchedEvents.forEach(event => {
+        try {
+          // Format the date from the ISO string
+          const dateStr = event.date.split('T')[0]; // This will give us YYYY-MM-DD
+          marked[dateStr] = {
+            marked: true,
+            dotColor: getEventColor(event.type),
+            eventDetails: {
+              _id: event._id,
+              title: event.title,
+              description: event.description,
+              type: event.type,
+              date: event.date,
+              userId: event.userId
+            }
+          };
+        } catch (error) {
+          console.error('Error processing event:', event, error);
+        }
+      });
+      
+      console.log('Marked dates:', marked);
+      setMarkedDates(marked);
+      setEvents(fetchedEvents);
+    } catch (error) {
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      Alert.alert(
+        'Error',
+        'Failed to fetch events. Please try again.'
+      );
+    }
+  };
+
+  const getEventColor = (type) => {
+    switch (type) {
+      case 'class': return '#4CAF50';
+      case 'meeting': return '#2196F3';
+      case 'exam': return '#F44336';
+      default: return '#FFC107';
+    }
   };
 
   const handleDayPress = (day) => {
     setSelectedDate(day.dateString);
-    const isMarked =
-      markedDates[day.dateString]?.marked || events[day.dateString]?.marked;
+    const isMarked = markedDates[day.dateString]?.marked;
     setIsMarkedDayModal(isMarked);
+    setSelectedEventDetails(markedDates[day.dateString]?.eventDetails);
     setModalVisible(true);
-
-    if (isMarked) {
-      // If marked, get the event text
-      setEventText(
-        markedDates[day.dateString]?.text || events[day.dateString]?.text || ""
-      );
-    } else {
-      setEventText("");
-    }
   };
 
-  const handleMarkDay = () => {
-    if (eventText.trim()) {
-      setMarkedDates((prev) => ({
+  const handleMarkDay = async (eventData) => {
+    try {
+      // Format the date properly and ensure all required fields
+      const formattedData = {
+        userId: userId,
+        title: eventData.title,
+        description: eventData.description || '', // Optional field
+        type: eventData.type,
+        date: new Date(eventData.date).toISOString(), // Ensure proper date format
+      };
+
+      // Validate required fields before making the request
+      if (!formattedData.title || !formattedData.date) {
+        Alert.alert('Error', 'Title and date are required fields');
+        return;
+      }
+
+      console.log('Sending event data:', formattedData); // Debug log
+
+      const response = await axios.post(`${url}/api/events/`, formattedData);
+
+      const newEvent = response.data;
+      setMarkedDates(prev => ({
         ...prev,
         [selectedDate]: {
           marked: true,
-          dotColor: "#50cebb",
-          text: eventText,
-        },
+          dotColor: getEventColor(newEvent.type),
+          eventDetails: newEvent
+        }
       }));
+
+      setModalVisible(false);
+    } catch (error) {
+      console.error('Error creating event:', error.response?.data || error);
+      Alert.alert(
+        'Error',
+        'Failed to create event. Please ensure all required fields are filled.'
+      );
     }
-    setModalVisible(false);
-    setEventText("");
   };
 
-  const handleUnmarkDay = () => {
-    setMarkedDates((prev) => {
-      const updated = { ...prev };
-      delete updated[selectedDate];
-      return updated;
-    });
-    setModalVisible(false);
-    setEventText("");
+  const handleUnmarkDay = async () => {
+    try {
+      const eventId = selectedEventDetails._id;
+      await axios.delete(`${url}/api/events/${eventId}`, {
+        data: { userId }
+      });
+
+      setMarkedDates(prev => {
+        const updated = { ...prev };
+        delete updated[selectedDate];
+        return updated;
+      });
+
+      setModalVisible(false);
+      setSelectedEventDetails(null);
+    } catch (error) {
+      console.error('Error deleting event:', error);
+    }
+  };
+
+  const handleUpdateEvent = async (eventData) => {
+    try {
+      const response = await axios.put(
+        `${url}/api/events/${eventData._id}`,
+        {
+          userId,
+          title: eventData.title,
+          description: eventData.description,
+          type: eventData.type,
+          date: eventData.date
+        }
+      );
+
+      const updatedEvent = response.data;
+      
+      // Update the markedDates state
+      setMarkedDates(prev => ({
+        ...prev,
+        [selectedDate]: {
+          marked: true,
+          dotColor: getEventColor(updatedEvent.type),
+          eventDetails: updatedEvent
+        }
+      }));
+
+      // Update the events array
+      setEvents(prev => 
+        prev.map(event => 
+          event._id === updatedEvent._id ? updatedEvent : event
+        )
+      );
+
+      setModalVisible(false);
+    } catch (error) {
+      console.error('Error updating event:', error);
+      Alert.alert(
+        'Error',
+        'Failed to update event. Please try again.'
+      );
+    }
   };
 
   const renderAssignment = ({ item }) => (
@@ -131,7 +277,6 @@ export default function Work() {
 
   const handleApplyLeave = () => {
     if (leaveReason.trim()) {
-      // Handle leave application submission
       console.log("Leave application submitted:", leaveReason);
       setLeaveReason("");
     }
@@ -147,11 +292,8 @@ export default function Work() {
                 style={styles.calendar}
                 onDayPress={handleDayPress}
                 enableSwipeMonths={true}
-                markingType="period"
-                markedDates={{
-                  ...events,
-                  ...markedDates,
-                }}
+                markingType="dot"
+                markedDates={markedDates}
                 theme={{
                   backgroundColor: "#ffffff",
                   calendarBackground: "#ffffff",
@@ -167,10 +309,11 @@ export default function Work() {
                 modalVisible={modalVisible}
                 setModalVisible={setModalVisible}
                 isMarkedDayModal={isMarkedDayModal}
-                eventText={eventText}
-                setEventText={setEventText}
+                eventDetails={selectedEventDetails}
                 handleMarkDay={handleMarkDay}
                 handleUnmarkDay={handleUnmarkDay}
+                handleUpdateEvent={handleUpdateEvent}
+                selectedDate={selectedDate}
               />
             </Card>
           </View>
