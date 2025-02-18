@@ -2,6 +2,7 @@ import Card from "@/components/card";
 import WorkModals from "@/components/WorkModals.jsx";
 import { url } from "@/constants/AppContants";
 import { MaterialIcons } from "@expo/vector-icons";
+import { Picker } from '@react-native-picker/picker';
 import axios from 'axios';
 import { router } from "expo-router";
 import * as SecureStore from 'expo-secure-store';
@@ -9,12 +10,14 @@ import React, { useEffect, useState } from "react";
 import {
   Alert,
   FlatList,
+  Modal,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import { Calendar } from "react-native-calendars";
 
@@ -52,6 +55,31 @@ export default function Work() {
     },
   ]);
   const [leaveReason, setLeaveReason] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const [leaveModalVisible, setLeaveModalVisible] = useState(false);
+  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [leaveType, setLeaveType] = useState('casual');
+
+  // Template leave data
+  const [leaves, setLeaves] = useState([
+    {
+      _id: '1',
+      type: 'sick',
+      startDate: '2024-02-15',
+      endDate: '2024-02-16',
+      reason: 'Fever and cold',
+      status: 'approved',
+    },
+    {
+      _id: '2',
+      type: 'casual',
+      startDate: '2024-02-20',
+      endDate: '2024-02-21',
+      reason: 'Family function',
+      status: 'pending',
+    },
+  ]);
 
   useEffect(() => {
     const fetchUserId = async () => {
@@ -71,12 +99,22 @@ export default function Work() {
 
   const fetchEvents = async () => {
     try {
+      if (!userId) {
+        console.error('userId is not available');
+        return;
+      }
+
+      // For Android Emulator
+      // For iOS Simulator
+      // const baseUrl = 'http://127.0.0.1:3000';
+      // For physical device, use your computer's IP address
+      // const baseUrl = 'http://192.168.1.XXX:3000';
+
       console.log('Attempting to fetch events with userId:', userId);
-            
-      const response = await axios.get(`http://10.64.33.126:3000/api/events/67973e6b5eab6a9a0d5ecf4a`);
       
-      console.log('Response data:', response.data);
+      const response = await axios.get(`${url}/api/events/${userId}`);
       
+      console.log('Response:', response.data);
       const fetchedEvents = response.data;
       
       if (!Array.isArray(fetchedEvents)) {
@@ -276,15 +314,54 @@ export default function Work() {
   };
 
   const handleApplyLeave = () => {
-    if (leaveReason.trim()) {
-      console.log("Leave application submitted:", leaveReason);
-      setLeaveReason("");
-    }
+    setLeaveModalVisible(true);
   };
 
+  const handleSubmitLeave = () => {
+    const newLeave = {
+      _id: String(leaves.length + 1),
+      type: leaveType,
+      startDate,
+      endDate,
+      reason: leaveReason,
+      status: 'pending',
+    };
+
+    setLeaves([newLeave, ...leaves]);
+    setLeaveModalVisible(false);
+    setLeaveReason('');
+    setLeaveType('casual');
+    setStartDate(new Date().toISOString().split('T')[0]);
+    setEndDate(new Date().toISOString().split('T')[0]);
+  };
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await fetchEvents();
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      Alert.alert('Error', 'Failed to refresh data');
+    } finally {
+      setRefreshing(false);
+    }
+  }, [userId]);
+
   return (
-    <>
-      <ScrollView style={styles.scrollContainer} nestedScrollEnabled={true}>
+    <View style={{ flex: 1 }}>
+      <ScrollView 
+        style={styles.scrollContainer} 
+        nestedScrollEnabled={true}
+        contentContainerStyle={{ paddingBottom: 80 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#1a1a1a"]}
+            tintColor="#1a1a1a"
+          />
+        }
+      >
         <View style={styles.container}>
           <View style={styles.calendarSection}>
             <Card heading="Event Calendar">
@@ -318,6 +395,54 @@ export default function Work() {
             </Card>
           </View>
 
+          <View style={styles.leaveSection}>
+            <Card heading="Leave Requests">
+              <View style={styles.leaveHeader}>
+                <Text style={styles.sectionTitle}>Recent Leaves</Text>
+                <TouchableOpacity
+                  style={styles.applyButton}
+                  onPress={handleApplyLeave}
+                >
+                  <MaterialIcons name="add" size={24} color="white" />
+                  <Text style={styles.buttonText}>Apply Leave</Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView 
+                horizontal={true}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={[
+                  styles.leavesScrollContainer,
+                  leaves.length === 0 && styles.emptyContainer
+                ]}
+              >
+                {leaves.length > 0 ? (
+                  leaves.map((leave) => (
+                    <View key={leave._id} style={styles.leaveItem}>
+                      <View style={styles.leaveItemHeader}>
+                        <Text style={styles.leaveType}>{leave.type.toUpperCase()}</Text>
+                        <View style={[
+                          styles.statusBadge,
+                          { backgroundColor: leave.status === 'approved' ? '#4ade80' : 
+                                          leave.status === 'rejected' ? '#ef4444' : '#fb923c' }
+                        ]}>
+                          <Text style={styles.statusText}>{leave.status}</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.dates}>{leave.startDate} - {leave.endDate}</Text>
+                      <Text style={styles.leaveReason}>{leave.reason}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <View style={styles.emptyStateContainer}>
+                    <MaterialIcons name="emoji-emotions" size={32} color="#4ade80" />
+                    <Text style={styles.emptyStateText}>Great attendance! Keep up the good work!</Text>
+                  </View>
+                )}
+              </ScrollView>
+            </Card>
+          </View>
+
           <View style={styles.assignmentsSection}>
             <Card heading="Assignments">
               <View style={styles.assignmentListContainer}>
@@ -336,34 +461,81 @@ export default function Work() {
               </TouchableOpacity>
             </Card>
           </View>
-
-          <View style={styles.leaveSection}>
-            <Card heading="Apply for Leave">
-              <TextInput
-                style={styles.leaveInput}
-                multiline
-                numberOfLines={4}
-                placeholder="Enter reason for leave..."
-                value={leaveReason}
-                onChangeText={setLeaveReason}
-                textAlignVertical="top"
-              />
-              <TouchableOpacity
-                style={styles.applyLeaveButton}
-                onPress={handleApplyLeave}
-              >
-                <Text style={styles.buttonText}>Apply Leave</Text>
-              </TouchableOpacity>
-            </Card>
-          </View>
         </View>
       </ScrollView>
 
-      <TouchableOpacity style={styles.fab} onPress={handleViewMentees}>
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={handleViewMentees}
+      >
         <MaterialIcons name="people" size={24} color="white" />
         <Text style={styles.fabText}>View Mentees</Text>
       </TouchableOpacity>
-    </>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={leaveModalVisible}
+        onRequestClose={() => setLeaveModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Apply for Leave</Text>
+
+            <TextInput
+              style={styles.input}
+              placeholder="Start Date (YYYY-MM-DD)"
+              value={startDate}
+              onChangeText={setStartDate}
+            />
+
+            <TextInput
+              style={styles.input}
+              placeholder="End Date (YYYY-MM-DD)"
+              value={endDate}
+              onChangeText={setEndDate}
+            />
+
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={leaveType}
+                onValueChange={setLeaveType}
+                style={styles.picker}
+              >
+                <Picker.Item label="Casual Leave" value="casual" />
+                <Picker.Item label="Sick Leave" value="sick" />
+                <Picker.Item label="Vacation" value="vacation" />
+                <Picker.Item label="Other" value="other" />
+              </Picker>
+            </View>
+
+            <TextInput
+              style={[styles.input, styles.reasonInput]}
+              placeholder="Enter reason for leave..."
+              value={leaveReason}
+              onChangeText={setLeaveReason}
+              multiline
+              numberOfLines={4}
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.submitButton]}
+                onPress={handleSubmitLeave}
+              >
+                <Text style={styles.buttonText}>Submit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setLeaveModalVisible(false)}
+              >
+                <Text style={[styles.buttonText, styles.cancelText]}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
@@ -449,48 +621,156 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   fab: {
-    position: "absolute",
+    position: 'absolute',
     bottom: 20,
     right: 20,
-    backgroundColor: "grey",
+    backgroundColor: '#1a1a1a',
     borderRadius: 28,
     paddingVertical: 16,
     paddingHorizontal: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    elevation: 4,
-    shadowColor: "#000",
+    flexDirection: 'row',
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowOpacity: 0.30,
+    shadowRadius: 4.65,
+    zIndex: 999,
   },
   fabText: {
-    color: "white",
+    color: 'white',
     marginLeft: 8,
-    fontWeight: "600",
+    fontWeight: '600',
     fontSize: 16,
   },
   leaveSection: {
-    marginBottom: 16,
+    marginTop: 20,
   },
-  leaveInput: {
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
+  leaveHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  applyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1a1a1a',
+    padding: 8,
+    borderRadius: 5,
+  },
+  leavesScrollContainer: {
+    paddingRight: 20,
+  },
+  leaveItem: {
+    backgroundColor: '#f8f9fa',
+    padding: 20,
     borderRadius: 8,
-    padding: 12,
-    marginTop: 10,
-    backgroundColor: "#f8f9fa",
-    height: 100,
-    fontSize: 16,
+    marginRight: 15,
+    marginTop: 15,
+    marginBottom: 15,
+    width: 280,
+    // shadowColor: '#000',
+    // shadowOffset: {
+    //   width: 0,
+    //   height: 2,
+    // },
+    // shadowOpacity: 0.1,
+    // shadowRadius: 3,
+    elevation: 3,
   },
-  applyLeaveButton: {
-    marginTop: 16,
-    backgroundColor: "#1a1a1a",
+  leaveItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  leaveType: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 10,
+    width: '90%',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 10,
+    borderRadius: 5,
+    marginBottom: 15,
+  },
+  reasonInput: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
+    marginBottom: 15,
+  },
+  picker: {
+    height: 50,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  modalButton: {
+    flex: 1,
     padding: 12,
     borderRadius: 5,
-    alignItems: "center",
+    marginHorizontal: 5,
+  },
+  submitButton: {
+    backgroundColor: '#1a1a1a',
+  },
+  cancelButton: {
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  cancelText: {
+    color: '#666',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  emptyStateContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    gap: 10,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: '#000',
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });
