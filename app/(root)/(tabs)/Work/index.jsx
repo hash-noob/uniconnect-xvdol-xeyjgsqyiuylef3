@@ -57,29 +57,12 @@ export default function Work() {
   const [leaveReason, setLeaveReason] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [leaveModalVisible, setLeaveModalVisible] = useState(false);
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(new Date().toLocaleDateString('en-IN'));
+  const [endDate, setEndDate] = useState(new Date().toLocaleDateString('en-IN'));
   const [leaveType, setLeaveType] = useState('casual');
 
   // Template leave data
-  const [leaves, setLeaves] = useState([
-    {
-      _id: '1',
-      type: 'sick',
-      startDate: '2024-02-15',
-      endDate: '2024-02-16',
-      reason: 'Fever and cold',
-      status: 'approved',
-    },
-    {
-      _id: '2',
-      type: 'casual',
-      startDate: '2024-02-20',
-      endDate: '2024-02-21',
-      reason: 'Family function',
-      status: 'pending',
-    },
-  ]);
+  const [leaves, setLeaves] = useState([]);
 
   useEffect(() => {
     const fetchUserId = async () => {
@@ -110,11 +93,11 @@ export default function Work() {
       // For physical device, use your computer's IP address
       // const baseUrl = 'http://192.168.1.XXX:3000';
 
-      console.log('Attempting to fetch events with userId:', userId);
+      // console.log('Attempting to fetch events with userId:', userId);
       
       const response = await axios.get(`${url}/api/events/${userId}`);
       
-      console.log('Response:', response.data);
+      // console.log('Response:', response.data);
       const fetchedEvents = response.data;
       
       if (!Array.isArray(fetchedEvents)) {
@@ -148,7 +131,7 @@ export default function Work() {
         }
       });
       
-      console.log('Marked dates:', marked);
+      // console.log('Marked dates:', marked);
       setMarkedDates(marked);
       setEvents(fetchedEvents);
     } catch (error) {
@@ -198,7 +181,7 @@ export default function Work() {
         return;
       }
 
-      console.log('Sending event data:', formattedData); // Debug log
+      // console.log('Sending event data:', formattedData); // Debug log
 
       const response = await axios.post(`${url}/api/events/`, formattedData);
 
@@ -317,28 +300,97 @@ export default function Work() {
     setLeaveModalVisible(true);
   };
 
-  const handleSubmitLeave = () => {
-    const newLeave = {
-      _id: String(leaves.length + 1),
-      type: leaveType,
-      startDate,
-      endDate,
-      reason: leaveReason,
-      status: 'pending',
-    };
-
-    setLeaves([newLeave, ...leaves]);
-    setLeaveModalVisible(false);
-    setLeaveReason('');
-    setLeaveType('casual');
-    setStartDate(new Date().toISOString().split('T')[0]);
-    setEndDate(new Date().toISOString().split('T')[0]);
+  const fetchLeaves = async () => {
+    try {
+      if (!userId) return;
+      
+      const response = await axios.get(`${url}/api/faculty/leaves/${userId}`);
+      setLeaves(response.data);
+    } catch (error) {
+      console.error('Error fetching leaves:', error);
+      Alert.alert(
+        'Error',
+        error.response?.data?.message || 'Failed to fetch leaves'
+      );
+    }
   };
+
+  const handleSubmitLeave = async () => {
+    try {
+      const leaveData = {
+        userId,
+        type: leaveType,
+        startDate: startDate,
+        endDate: endDate,
+        reason: leaveReason,
+      };
+      console.log(leaveData);
+
+      const response = await axios.post(`${url}/api/faculty/leaves`, leaveData);
+      const newLeave = response.data;
+
+      setLeaves([newLeave, ...leaves]);
+      setLeaveModalVisible(false);
+      setLeaveReason('');
+      setLeaveType('casual');
+      setStartDate(new Date().toLocaleDateString('en-IN'));
+      setEndDate(new Date().toLocaleDateString('en-IN'));
+
+      Alert.alert('Success', 'Leave request submitted successfully');
+    } catch (error) {
+      console.error('Error submitting leave:', error);
+      Alert.alert(
+        'Error',
+        error.response?.data?.message + error.response?.data?.error || 'Failed to submit leave request'
+      );
+    }
+  };
+
+  const handleDeleteLeave = async (leaveId) => {
+    Alert.alert(
+      "Delete Leave Request",
+      "Are you sure you want to delete this leave request?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Delete",
+          onPress: async () => {
+            try {
+              await axios.delete(`${url}/api/faculty/leaves/${userId}`, {
+                data: { leave_id: leaveId }
+              });
+              
+              setLeaves(leaves.filter(leave => leave._id !== leaveId));
+              Alert.alert('Success', 'Leave request deleted successfully');
+            } catch (error) {
+              console.error('Error deleting leave:', error);
+              Alert.alert(
+                'Error',
+                error.response?.data?.message || 'Failed to delete leave request'
+              );
+            }
+          },
+          style: "destructive"
+        }
+      ]
+    );
+  };
+
+  // Add this useEffect to fetch leaves when component mounts
+  useEffect(() => {
+    fetchLeaves();
+  }, [userId]);
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
     try {
+      // setLoading(true);
       await fetchEvents();
+      await fetchLeaves();
+      // setLoading(false);
     } catch (error) {
       console.error('Error refreshing data:', error);
       Alert.alert('Error', 'Failed to refresh data');
@@ -421,12 +473,22 @@ export default function Work() {
                     <View key={leave._id} style={styles.leaveItem}>
                       <View style={styles.leaveItemHeader}>
                         <Text style={styles.leaveType}>{leave.type.toUpperCase()}</Text>
-                        <View style={[
-                          styles.statusBadge,
-                          { backgroundColor: leave.status === 'approved' ? '#4ade80' : 
-                                          leave.status === 'rejected' ? '#ef4444' : '#fb923c' }
-                        ]}>
-                          <Text style={styles.statusText}>{leave.status}</Text>
+                        <View style={styles.rightContainer}>
+                          {leave.status === 'pending' && (
+                            <TouchableOpacity 
+                              onPress={() => handleDeleteLeave(leave._id)}
+                              style={styles.deleteButton}
+                            >
+                              <MaterialIcons name="delete-outline" size={20} color="#ef4444" />
+                            </TouchableOpacity>
+                          )}
+                          <View style={[
+                            styles.statusBadge,
+                            { backgroundColor: leave.status === 'approved' ? '#4ade80' : 
+                                            leave.status === 'rejected' ? '#ef4444' : '#fb923c' }
+                          ]}>
+                            <Text style={styles.statusText}>{leave.status}</Text>
+                          </View>
                         </View>
                       </View>
                       <Text style={styles.dates}>{leave.startDate} - {leave.endDate}</Text>
@@ -684,7 +746,7 @@ const styles = StyleSheet.create({
     // },
     // shadowOpacity: 0.1,
     // shadowRadius: 3,
-    elevation: 3,
+    // elevation: 3,
   },
   leaveItemHeader: {
     flexDirection: 'row',
@@ -772,5 +834,13 @@ const styles = StyleSheet.create({
     color: '#000',
     fontWeight: '600',
     textAlign: 'center',
+  },
+  rightContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  deleteButton: {
+    padding: 4,
   },
 });
