@@ -65,9 +65,9 @@ const SessionProvider = ({children})=>{
               // Store the session details in local storage
               setSession(user);
               // Storing the credentials to local device
-                const credentials = JSON.stringify({email,password})
+                const credentials = JSON.stringify(user)
                 console.log("credentials string: "+credentials)
-                console.log(user)
+                console.log(session)
                 
                 await SecureStore.setItemAsync('userId', user.id)
                 await SecureStore.setItemAsync('email', user.email)
