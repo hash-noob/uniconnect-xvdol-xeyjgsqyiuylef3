@@ -30,25 +30,22 @@ export default function StudentHomeScreen() {
     "2024-03-15": { marked: true, dotColor: "green" },
   };
   const data = [
-    { value: 85, label: "Jan" },
-    { value: 80, label: "Feb" },
-    { value: 90, label: "Mar" },
+    { value: 60, label: "Jan" },
+    { value: 82, label: "Feb" },
+    { value: 52, label: "Mar" },
     { value: 85, label: "Apr" },
-    { value: 88, label: "May" },
-    { value: 95, label: "Jun" },
+    { value: 92, label: "May" },
+    { value: 75, label: "Jun" },
+    { value: 85, label: "Jul" },
+    { value: 95, label: "Aug" },
+    { value: 55, label: "Sep" },
+    { value: 75, label: "Oct" },
+    { value: 85, label: "Nov" },
+    { value: 95, label: "Dec" },
   ];
 
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Dashboard</Text>
-        <TouchableOpacity style={styles.notificationBell}>
-          <Ionicons name="notifications" size={24} color="#1a1a1a" />
-          <View style={styles.notificationBadge}>
-            <Text style={styles.badgeText}>3</Text>
-          </View>
-        </TouchableOpacity>
-      </View>
 
       <View style={styles.cardContainer}>
         <Card style={[styles.card, { backgroundColor: "#e8f5e9" }]}>
@@ -98,33 +95,51 @@ export default function StudentHomeScreen() {
       <Card style={styles.trendsCard}>
         <Card.Content>
           <Text style={styles.sectionTitle}>Attendance Trends</Text>
+          <ScrollView horizontal={true}>
           <LineChart
             areaChart
             data={data}
-            width={300}
-            height={200}
+            style = {styles.chart}
             spacing={40}
             initialSpacing={20}
-            color="#1a1a1a"
+            color="#2196F3"
             textColor="#333"
             thickness={2}
-            startFillColor="rgba(26, 26, 26, 0.2)"
-            endFillColor="rgba(26, 26, 26, 0.05)"
-            startOpacity={0.9}
+            startFillColor="rgba(33, 150, 243, 0.3)"
+            endFillColor="rgba(33, 150, 243, 0.1)"
+            startOpacity={0.8}
             endOpacity={0.2}
             backgroundColor="#fff"
             rulesColor="#e3e3e3"
             rulesType="solid"
             yAxisTextStyle={{ color: "#333" }}
             xAxisTextStyle={{ color: "#333" }}
-            hideDataPoints
-            curved
+            hideDataPoints={false}
+            dataPointsColor="#2196F3"
+            maxValue={100}
+            minValue={50}
+            yAxisThickness={0}
+            xAxisThickness={0}
+            noOfSections={5}
           />
+          </ScrollView>
         </Card.Content>
       </Card>
     </ScrollView>
   );
 }
+
+// {{
+
+//   labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+
+//   datasets: [{
+
+//     data: [85, 80, 90, 85, 88, 95]
+
+//   }]
+
+// }}
 
 const styles = StyleSheet.create({
   container: {
