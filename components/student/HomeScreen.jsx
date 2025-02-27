@@ -43,7 +43,13 @@ export default function StudentHomeScreen() {
     { value: 85, label: "Nov" },
     { value: 95, label: "Dec" },
   ];
-
+  const customLabel = val => {
+    return (
+        <View style={{width: 70, marginLeft: 7}}>
+            <Text style={{color: 'white', fontWeight: 'bold'}}>{val}</Text>
+        </View>
+    );
+};
   return (
     <ScrollView style={styles.container}>
 
@@ -98,6 +104,9 @@ export default function StudentHomeScreen() {
           <ScrollView horizontal={true}>
           <LineChart
             areaChart
+            isAnimated
+            animationDuration={1500}
+            animationEasing="easeInOut"
             data={data}
             style = {styles.chart}
             spacing={40}
@@ -114,7 +123,6 @@ export default function StudentHomeScreen() {
             rulesType="solid"
             yAxisTextStyle={{ color: "#333" }}
             xAxisTextStyle={{ color: "#333" }}
-            hideDataPoints={false}
             dataPointsColor="#2196F3"
             maxValue={100}
             minValue={50}

@@ -4,7 +4,7 @@ import { useSession } from "@/hooks/session";
 
 export default function HomeScreen() {
   const { session } = useSession();
-  const isFaculty = session?.user?.role === "faculty";
+  const isFaculty = session?.role === "faculty";
 
   return isFaculty ? <FacultyHomeScreen />: <StudentHomeScreen />;
 }

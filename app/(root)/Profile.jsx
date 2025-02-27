@@ -1,5 +1,5 @@
-import FacultyProfileScreen from '@/components/FacultyProfile';
-import StudentProfileScreen from '@/components/StudentProfile';
+import FacultyProfileScreen from '@/components/faculty/FacultyProfile';
+import StudentProfileScreen from '@/components/student/StudentProfile';
 import * as SecureStore from 'expo-secure-store';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View, ScrollView, RefreshControl } from 'react-native';

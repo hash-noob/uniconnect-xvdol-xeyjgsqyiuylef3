@@ -22,7 +22,7 @@ import {
 import { Calendar } from "react-native-calendars";
 
 
-export default function FacultyWorkScreen() {
+export default function Work() {
   const [selectedDate, setSelectedDate] = useState("");
   const [markedDates, setMarkedDates] = useState({});
   const [modalVisible, setModalVisible] = useState(false);
@@ -31,29 +31,7 @@ export default function FacultyWorkScreen() {
   const [selectedEventDetails, setSelectedEventDetails] = useState(null);
   const [events, setEvents] = useState([]);
   const [userId, setUserId] = useState(null);
-  const [assignments, setAssignments] = useState([
-    {
-      id: "1",
-      title: "Math Assignment",
-      className: "MTH 201",
-      dueDate: "2024-03-25",
-      status: "pending",
-    },
-    {
-      id: "2",
-      title: "Physics Lab Report",
-      className: "PHY 202",
-      dueDate: "2024-03-28",
-      status: "completed",
-    },
-    {
-      id: "3",
-      title: "Literature Review",
-      className: "ENG 101",
-      dueDate: "2024-04-01",
-      status: "pending",
-    },
-  ]);
+  const [assignments, setAssignments] = useState([]);
   const [leaveReason, setLeaveReason] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [leaveModalVisible, setLeaveModalVisible] = useState(false);
@@ -63,6 +41,14 @@ export default function FacultyWorkScreen() {
 
   // Template leave data
   const [leaves, setLeaves] = useState([]);
+
+  // Add these state variables at the top with other useState declarations
+  const [assignmentModalVisible, setAssignmentModalVisible] = useState(false);
+  const [assignmentTitle, setAssignmentTitle] = useState('');
+  const [assignmentDescription, setAssignmentDescription] = useState('');
+  const [assignmentDueDate, setAssignmentDueDate] = useState('');
+  const [assignmentSubject, setAssignmentSubject] = useState('');
+  const [assignmentClass, setAssignmentClass] = useState('');
 
   useEffect(() => {
     const fetchUserId = async () => {
@@ -80,20 +66,34 @@ export default function FacultyWorkScreen() {
     }
   }, [userId]);
 
+  const fetchAssignments = async () => {
+    try {
+      const response = await axios.get(`${url}/api/faculty/assignments/${userId}`);
+      console.log(response.data.assignments)
+      setAssignments(response.data.assignments);
+    } catch (error) {
+      console.error('Error fetching assignments:', error);
+    }
+  };
+
+  const addAssignment = async (assignment) => {
+    try {
+      const data = { faculty_id: userId, ...assignment };
+      const response = await axios.post(`${url}/api/faculty/assignments`, assignment);
+      setAssignments([response.data, ...assignments]);
+      onRefresh();
+    } catch (error){
+      console.log(error);
+      Alert.alert('Error', 'Failed to add assignment');
+    }
+  }
+
   const fetchEvents = async () => {
     try {
       if (!userId) {
         console.error('userId is not available');
         return;
       }
-
-      // For Android Emulator
-      // For iOS Simulator
-      // const baseUrl = 'http://127.0.0.1:3000';
-      // For physical device, use your computer's IP address
-      // const baseUrl = 'http://192.168.1.XXX:3000';
-
-      // console.log('Attempting to fetch events with userId:', userId);
       
       const response = await axios.get(`${url}/api/events/${userId}`);
       
@@ -269,24 +269,15 @@ export default function FacultyWorkScreen() {
 
   const renderAssignment = ({ item }) => (
     <View style={styles.assignmentItem}>
-      <View
-        style={styles.assignmentContent}
-        onClick={() => {
-          console.log(item.title);
-        }}
-      >
+      <View style={styles.assignmentContent}>
         <Text style={styles.assignmentTitle}>{item.title}</Text>
-        <Text style={styles.className}>{item.className}</Text>
+        <Text style={styles.assignmentDescription}>{item.description}</Text>
         <Text style={styles.assignmentDate}>Due: {item.dueDate}</Text>
       </View>
-      <View
-        style={[
-          styles.statusBadge,
-          item.status === "completed"
-            ? styles.completedBadge
-            : styles.pendingBadge,
-        ]}
-      >
+      <View style={[
+        styles.statusBadge,
+        item.status === "completed" ? styles.completedBadge : styles.pendingBadge
+      ]}>
         <Text style={styles.statusText}>{item.status}</Text>
       </View>
     </View>
@@ -298,6 +289,33 @@ export default function FacultyWorkScreen() {
 
   const handleApplyLeave = () => {
     setLeaveModalVisible(true);
+  };
+
+  const handleAddAssignment = async () => {
+    try {
+      const assignment = {
+        faculty_id:userId,
+        title: assignmentTitle,
+        description: assignmentDescription,
+        subject: assignmentSubject,
+        class: assignmentClass,
+        dueDate: assignmentDueDate,
+        status: 'pending'
+      };
+
+      await addAssignment(assignment);
+      
+      // Reset form
+      setAssignmentTitle('');
+      setAssignmentDescription('');
+      setAssignmentDueDate('');
+      setAssignmentModalVisible(false);
+      
+      Alert.alert('Success', 'Assignment added successfully');
+    } catch (error) {
+      console.error('Error adding assignment:', error);
+      Alert.alert('Error', 'Failed to add assignment');
+    }
   };
 
   const fetchLeaves = async () => {
@@ -390,6 +408,7 @@ export default function FacultyWorkScreen() {
       // setLoading(true);
       await fetchEvents();
       await fetchLeaves();
+      await fetchAssignments();
       // setLoading(false);
     } catch (error) {
       console.error('Error refreshing data:', error);
@@ -508,17 +527,26 @@ export default function FacultyWorkScreen() {
           <View style={styles.assignmentsSection}>
             <Card heading="Assignments">
               <View style={styles.assignmentListContainer}>
-                <FlatList
-                  data={assignments}
-                  renderItem={renderAssignment}
-                  keyExtractor={(item) => item.id}
-                  horizontal={true}
-                  showsHorizontalScrollIndicator={false}
-                  nestedScrollEnabled={true}
-                  style={styles.assignmentList}
-                />
+                {assignments.length > 0 ? (
+                  <FlatList
+                    data={assignments}
+                    renderItem={renderAssignment}
+                    keyExtractor={(item) => item.id}
+                    horizontal={true}
+                    showsHorizontalScrollIndicator={false}
+                    nestedScrollEnabled={true}
+                    style={styles.assignmentList}
+                  />
+                ) : (
+                  <View style={styles.emptyAssignmentContainer}>
+                    <MaterialIcons name="celebration" size={32} color="#4ade80" />
+                    <Text style={styles.emptyStateText}>
+                      Woohoo! No assignments pending. Time to relax! 🎉
+                    </Text>
+                  </View>
+                )}
               </View>
-              <TouchableOpacity style={styles.addAssignmentButton}>
+              <TouchableOpacity style={styles.addAssignmentButton} onPress={() => setAssignmentModalVisible(true)}>
                 <Text style={styles.buttonText}>Add Assignment</Text>
               </TouchableOpacity>
             </Card>
@@ -597,6 +625,69 @@ export default function FacultyWorkScreen() {
           </View>
         </View>
       </Modal>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={assignmentModalVisible}
+        onRequestClose={() => setAssignmentModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Add Assignment</Text>
+
+            <TextInput
+              style={styles.input}
+              placeholder="Enter assignment title"
+              value={assignmentTitle}
+              onChangeText={setAssignmentTitle}
+            />
+
+            <TextInput
+              style={styles.input}
+              placeholder="Enter assignment Subject"
+              value={assignmentSubject}
+              onChangeText={setAssignmentSubject}
+            />
+
+            <TextInput
+              style={styles.input}
+              placeholder="Enter assignment description"
+              value={assignmentDescription}
+              onChangeText={setAssignmentDescription}
+            />
+
+            <TextInput
+              style={styles.input}
+              placeholder="Enter assignment class"
+              value={assignmentClass}
+              onChangeText={setAssignmentClass}
+            />
+
+            <TextInput
+              style={styles.input}
+              placeholder="Enter assignment due date"
+              value={assignmentDueDate}
+              onChangeText={setAssignmentDueDate}
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.submitButton]}
+                onPress={handleAddAssignment}
+              >
+                <Text style={styles.buttonText}>Submit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setAssignmentModalVisible(false)}
+              >
+                <Text style={[styles.buttonText, styles.cancelText]}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>  
     </View>
   );
 }
@@ -626,37 +717,40 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   assignmentItem: {
-    width: 280,
+    width: 300,
     marginRight: 16,
-    padding: 15,
+    padding: 16,
     backgroundColor: "#f8f9fa",
-    borderRadius: 8,
+    borderRadius: 12,
     flexDirection: "column",
     justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
   },
   assignmentContent: {
-    marginBottom: 10,
+    marginBottom: 12,
   },
   assignmentTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 4,
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 8,
+    color: '#1a1a1a',
   },
-  className: {
+  assignmentDescription: {
     fontSize: 14,
-    color: "#1a1a1a",
-    fontWeight: "500",
-    marginBottom: 2,
+    color: '#4b5563',
+    marginBottom: 8,
   },
   assignmentDate: {
     fontSize: 14,
-    color: "#666",
+    color: '#6b7280',
+    fontWeight: '500',
   },
   statusBadge: {
     alignSelf: "flex-start",
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 12,
+    borderRadius: 20,
   },
   completedBadge: {
     backgroundColor: "#4ade80",
@@ -666,16 +760,19 @@ const styles = StyleSheet.create({
   },
   statusText: {
     color: "#ffffff",
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "600",
     textTransform: "capitalize",
   },
   addAssignmentButton: {
-    marginTop: 20,
+    marginTop: 16,
     backgroundColor: "#1a1a1a",
     padding: 12,
-    borderRadius: 5,
+    borderRadius: 8,
     alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
   },
   buttonText: {
     color: "#ffffff",
@@ -842,5 +939,12 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     padding: 4,
+  },
+  emptyAssignmentContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    gap: 12,
   },
 });

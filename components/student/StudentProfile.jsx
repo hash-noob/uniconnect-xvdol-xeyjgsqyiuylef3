@@ -193,10 +193,12 @@ const styles = StyleSheet.create({
   },
   textContainer: {
     marginLeft: 10,
+    color: 'black',
   },
   userName: {
     fontSize: 20,
     fontWeight: 'bold',
+    color: 'black',
   },
   rollNumber: {
     fontSize: 14,
@@ -237,6 +239,7 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 16,
     fontWeight: 'bold',
+    color: 'black',
   },
   courseItem: {
     flexDirection: 'row',
