@@ -68,7 +68,7 @@ export default function Work() {
 
   const fetchAssignments = async () => {
     try {
-      const response = await axios.get(`http://10.64.33.126:3000/api/faculty/assignments/${userId}`);
+      const response = await axios.get(`${url}/api/faculty/assignments/${userId}`);
       console.log(response.data.assignments)
       setAssignments(response.data.assignments);
     } catch (error) {
@@ -79,7 +79,7 @@ export default function Work() {
   const addAssignment = async (assignment) => {
     try {
       const data = { faculty_id: userId, ...assignment };
-      const response = await axios.post(`http://10.64.33.126:3000/api/faculty/assignments`, assignment);
+      const response = await axios.post(`${url}/api/faculty/assignments`, assignment);
       setAssignments([response.data, ...assignments]);
       onRefresh();
     } catch (error){
@@ -94,14 +94,6 @@ export default function Work() {
         console.error('userId is not available');
         return;
       }
-
-      // For Android Emulator
-      // For iOS Simulator
-      // const baseUrl = 'http://127.0.0.1:3000';
-      // For physical device, use your computer's IP address
-      // const baseUrl = 'http://192.168.1.XXX:3000';
-
-      // console.log('Attempting to fetch events with userId:', userId);
       
       const response = await axios.get(`${url}/api/events/${userId}`);
       
