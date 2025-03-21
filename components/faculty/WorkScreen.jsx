@@ -1,8 +1,8 @@
 import Card from "@/components/card";
+import LeaveApplicationForm from "@/components/LeaveApplicationForm";
 import WorkModals from "@/components/WorkModals.jsx";
 import { url } from "@/constants/AppContants";
 import { MaterialIcons } from "@expo/vector-icons";
-import { Picker } from '@react-native-picker/picker';
 import axios from 'axios';
 import { router } from "expo-router";
 import * as SecureStore from 'expo-secure-store';
@@ -10,7 +10,9 @@ import React, { useEffect, useState } from "react";
 import {
   Alert,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -32,12 +34,9 @@ export default function Work() {
   const [events, setEvents] = useState([]);
   const [userId, setUserId] = useState(null);
   const [assignments, setAssignments] = useState([]);
-  const [leaveReason, setLeaveReason] = useState("");
+  const [assignmentsLoading, setAssignmentsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [leaveModalVisible, setLeaveModalVisible] = useState(false);
-  const [startDate, setStartDate] = useState(new Date().toLocaleDateString('en-IN'));
-  const [endDate, setEndDate] = useState(new Date().toLocaleDateString('en-IN'));
-  const [leaveType, setLeaveType] = useState('casual');
 
   // Template leave data
   const [leaves, setLeaves] = useState([]);
@@ -49,6 +48,8 @@ export default function Work() {
   const [assignmentDueDate, setAssignmentDueDate] = useState('');
   const [assignmentSubject, setAssignmentSubject] = useState('');
   const [assignmentClass, setAssignmentClass] = useState('');
+  const [showDueDatePicker, setShowDueDatePicker] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
 
   useEffect(() => {
     const fetchUserId = async () => {
@@ -66,22 +67,36 @@ export default function Work() {
     }
   }, [userId]);
 
+  // Add useEffect to fetch assignments when userId is available
+  useEffect(() => {
+    if (userId) {
+      console.log('Fetching assignments with userId:', userId);
+      fetchAssignments();
+    }
+  }, [userId]);
+
   const fetchAssignments = async () => {
     try {
+      setAssignmentsLoading(true);
       const response = await axios.get(`${url}/api/faculty/assignments/${userId}`);
-      console.log(response.data.assignments)
-      setAssignments(response.data.assignments);
+      console.log('Assignments fetched:', response.data.assignments);
+      setAssignments(Array.isArray(response.data.assignments) ? response.data.assignments : []);
     } catch (error) {
       console.error('Error fetching assignments:', error);
+      Alert.alert(
+        'Error',
+        'Failed to fetch assignments. Please try again.'
+      );
+    } finally {
+      setAssignmentsLoading(false);
     }
   };
 
   const addAssignment = async (assignment) => {
     try {
       const data = { faculty_id: userId, ...assignment };
-      const response = await axios.post(`${url}/api/faculty/assignments`, assignment);
+      const response = await axios.post(`${url}/api/faculty/assignments`, data);
       setAssignments([response.data, ...assignments]);
-      onRefresh();
     } catch (error){
       console.log(error);
       Alert.alert('Error', 'Failed to add assignment');
@@ -287,14 +302,35 @@ export default function Work() {
     router.push("/Work/meentes");
   };
 
+  const handleLeaveSubmitted = (newLeave) => {
+    // Update the leaves state with the new leave
+    setLeaves([newLeave, ...leaves]);
+  };
+
   const handleApplyLeave = () => {
     setLeaveModalVisible(true);
   };
 
+  const validateAssignmentForm = () => {
+    const errors = {};
+    
+    if (!assignmentTitle.trim()) errors.title = "Title is required";
+    if (!assignmentSubject.trim()) errors.subject = "Subject is required";
+    if (!assignmentClass.trim()) errors.class = "Class is required";
+    if (!assignmentDueDate.trim()) errors.dueDate = "Due date is required";
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleAddAssignment = async () => {
     try {
+      if (!validateAssignmentForm()) {
+        return;
+      }
+
       const assignment = {
-        faculty_id:userId,
+        faculty_id: userId,
         title: assignmentTitle,
         description: assignmentDescription,
         subject: assignmentSubject,
@@ -309,6 +345,9 @@ export default function Work() {
       setAssignmentTitle('');
       setAssignmentDescription('');
       setAssignmentDueDate('');
+      setAssignmentSubject('');
+      setAssignmentClass('');
+      setFormErrors({});
       setAssignmentModalVisible(false);
       
       Alert.alert('Success', 'Assignment added successfully');
@@ -334,34 +373,8 @@ export default function Work() {
   };
 
   const handleSubmitLeave = async () => {
-    try {
-      const leaveData = {
-        userId,
-        type: leaveType,
-        startDate: startDate,
-        endDate: endDate,
-        reason: leaveReason,
-      };
-      console.log(leaveData);
-
-      const response = await axios.post(`${url}/api/faculty/leaves`, leaveData);
-      const newLeave = response.data;
-
-      setLeaves([newLeave, ...leaves]);
-      setLeaveModalVisible(false);
-      setLeaveReason('');
-      setLeaveType('casual');
-      setStartDate(new Date().toLocaleDateString('en-IN'));
-      setEndDate(new Date().toLocaleDateString('en-IN'));
-
-      Alert.alert('Success', 'Leave request submitted successfully');
-    } catch (error) {
-      console.error('Error submitting leave:', error);
-      Alert.alert(
-        'Error',
-        error.response?.data?.message + error.response?.data?.error || 'Failed to submit leave request'
-      );
-    }
+    // This function is no longer needed as it's handled by the LeaveApplicationForm component
+    // But we'll keep it as a reference for now or in case you need it elsewhere
   };
 
   const handleDeleteLeave = async (leaveId) => {
@@ -405,18 +418,27 @@ export default function Work() {
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
     try {
-      // setLoading(true);
-      await fetchEvents();
-      await fetchLeaves();
-      await fetchAssignments();
-      // setLoading(false);
+      if (userId) {
+        const promises = [
+          fetchEvents().catch(err => console.error('Error refreshing events:', err)),
+          fetchLeaves().catch(err => console.error('Error refreshing leaves:', err)),
+          fetchAssignments().catch(err => console.error('Error refreshing assignments:', err))
+        ];
+        
+        await Promise.allSettled(promises);
+      }
     } catch (error) {
       console.error('Error refreshing data:', error);
-      Alert.alert('Error', 'Failed to refresh data');
+      Alert.alert('Error', 'Failed to refresh some data');
     } finally {
       setRefreshing(false);
     }
   }, [userId]);
+
+  const handleDueDateSelect = (day) => {
+    setAssignmentDueDate(day.dateString);
+    setShowDueDatePicker(false);
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -527,11 +549,16 @@ export default function Work() {
           <View style={styles.assignmentsSection}>
             <Card heading="Assignments">
               <View style={styles.assignmentListContainer}>
-                {assignments.length > 0 ? (
+                {assignmentsLoading ? (
+                  <View style={styles.emptyAssignmentContainer}>
+                    <MaterialIcons name="hourglass-top" size={32} color="#4B5563" />
+                    <Text style={styles.emptyStateText}>Loading assignments...</Text>
+                  </View>
+                ) : assignments.length > 0 ? (
                   <FlatList
                     data={assignments}
                     renderItem={renderAssignment}
-                    keyExtractor={(item) => item.id}
+                    keyExtractor={(item) => item._id || item.id || Math.random().toString()}
                     horizontal={true}
                     showsHorizontalScrollIndicator={false}
                     nestedScrollEnabled={true}
@@ -547,6 +574,7 @@ export default function Work() {
                 )}
               </View>
               <TouchableOpacity style={styles.addAssignmentButton} onPress={() => setAssignmentModalVisible(true)}>
+                <MaterialIcons name="add" size={20} color="white" />
                 <Text style={styles.buttonText}>Add Assignment</Text>
               </TouchableOpacity>
             </Card>
@@ -562,69 +590,15 @@ export default function Work() {
         <Text style={styles.fabText}>View Mentees</Text>
       </TouchableOpacity>
 
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={leaveModalVisible}
-        onRequestClose={() => setLeaveModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Apply for Leave</Text>
-
-            <TextInput
-              style={styles.input}
-              placeholder="Start Date (YYYY-MM-DD)"
-              value={startDate}
-              onChangeText={setStartDate}
-            />
-
-            <TextInput
-              style={styles.input}
-              placeholder="End Date (YYYY-MM-DD)"
-              value={endDate}
-              onChangeText={setEndDate}
-            />
-
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={leaveType}
-                onValueChange={setLeaveType}
-                style={styles.picker}
-              >
-                <Picker.Item label="Casual Leave" value="casual" />
-                <Picker.Item label="Sick Leave" value="sick" />
-                <Picker.Item label="Vacation" value="vacation" />
-                <Picker.Item label="Other" value="other" />
-              </Picker>
-            </View>
-
-            <TextInput
-              style={[styles.input, styles.reasonInput]}
-              placeholder="Enter reason for leave..."
-              value={leaveReason}
-              onChangeText={setLeaveReason}
-              multiline
-              numberOfLines={4}
-            />
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.submitButton]}
-                onPress={handleSubmitLeave}
-              >
-                <Text style={styles.buttonText}>Submit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setLeaveModalVisible(false)}
-              >
-                <Text style={[styles.buttonText, styles.cancelText]}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {/* Use our new LeaveApplicationForm component */}
+      {userId && (
+        <LeaveApplicationForm
+          visible={leaveModalVisible}
+          onClose={() => setLeaveModalVisible(false)}
+          userId={userId}
+          onLeaveSubmitted={handleLeaveSubmitted}
+        />
+      )}
 
       <Modal
         animationType="slide"
@@ -632,61 +606,151 @@ export default function Work() {
         visible={assignmentModalVisible}
         onRequestClose={() => setAssignmentModalVisible(false)}
       >
-        <View style={styles.modalContainer}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalContainer}
+        >
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Add Assignment</Text>
-
-            <TextInput
-              style={styles.input}
-              placeholder="Enter assignment title"
-              value={assignmentTitle}
-              onChangeText={setAssignmentTitle}
-            />
-
-            <TextInput
-              style={styles.input}
-              placeholder="Enter assignment Subject"
-              value={assignmentSubject}
-              onChangeText={setAssignmentSubject}
-            />
-
-            <TextInput
-              style={styles.input}
-              placeholder="Enter assignment description"
-              value={assignmentDescription}
-              onChangeText={setAssignmentDescription}
-            />
-
-            <TextInput
-              style={styles.input}
-              placeholder="Enter assignment class"
-              value={assignmentClass}
-              onChangeText={setAssignmentClass}
-            />
-
-            <TextInput
-              style={styles.input}
-              placeholder="Enter assignment due date"
-              value={assignmentDueDate}
-              onChangeText={setAssignmentDueDate}
-            />
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.submitButton]}
-                onPress={handleAddAssignment}
-              >
-                <Text style={styles.buttonText}>Submit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setAssignmentModalVisible(false)}
-              >
-                <Text style={[styles.buttonText, styles.cancelText]}>Cancel</Text>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Add Assignment</Text>
+              <TouchableOpacity onPress={() => setAssignmentModalVisible(false)}>
+                <MaterialIcons name="close" size={24} color="#666" />
               </TouchableOpacity>
             </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.formField}>
+                <Text style={styles.fieldLabel}>
+                  Title <Text style={styles.requiredStar}>*</Text>
+                </Text>
+                <View style={[styles.inputContainer, formErrors.title && styles.inputError]}>
+                  <MaterialIcons name="assignment" size={20} color="#666" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.formInput}
+                    placeholder="Enter assignment title"
+                    value={assignmentTitle}
+                    onChangeText={(text) => {
+                      setAssignmentTitle(text);
+                      if (text.trim()) {
+                        setFormErrors({...formErrors, title: null});
+                      }
+                    }}
+                  />
+                </View>
+                {formErrors.title && <Text style={styles.errorText}>{formErrors.title}</Text>}
+              </View>
+
+              <View style={styles.formField}>
+                <Text style={styles.fieldLabel}>
+                  Subject <Text style={styles.requiredStar}>*</Text>
+                </Text>
+                <View style={[styles.inputContainer, formErrors.subject && styles.inputError]}>
+                  <MaterialIcons name="book" size={20} color="#666" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.formInput}
+                    placeholder="Enter subject name"
+                    value={assignmentSubject}
+                    onChangeText={(text) => {
+                      setAssignmentSubject(text);
+                      if (text.trim()) {
+                        setFormErrors({...formErrors, subject: null});
+                      }
+                    }}
+                  />
+                </View>
+                {formErrors.subject && <Text style={styles.errorText}>{formErrors.subject}</Text>}
+              </View>
+
+              <View style={styles.formField}>
+                <Text style={styles.fieldLabel}>
+                  Class <Text style={styles.requiredStar}>*</Text>
+                </Text>
+                <View style={[styles.inputContainer, formErrors.class && styles.inputError]}>
+                  <MaterialIcons name="groups" size={20} color="#666" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.formInput}
+                    placeholder="Enter class (e.g., CSE-A, 3rd Sem)"
+                    value={assignmentClass}
+                    onChangeText={(text) => {
+                      setAssignmentClass(text);
+                      if (text.trim()) {
+                        setFormErrors({...formErrors, class: null});
+                      }
+                    }}
+                  />
+                </View>
+                {formErrors.class && <Text style={styles.errorText}>{formErrors.class}</Text>}
+              </View>
+
+              <View style={styles.formField}>
+                <Text style={styles.fieldLabel}>
+                  Due Date <Text style={styles.requiredStar}>*</Text>
+                </Text>
+                <TouchableOpacity 
+                  style={[styles.inputContainer, formErrors.dueDate && styles.inputError]}
+                  onPress={() => setShowDueDatePicker(true)}
+                >
+                  <MaterialIcons name="event" size={20} color="#666" style={styles.inputIcon} />
+                  <Text style={[styles.formInput, !assignmentDueDate && styles.placeholderText]}>
+                    {assignmentDueDate || "Select due date"}
+                  </Text>
+                  <MaterialIcons name="arrow-drop-down" size={24} color="#666" />
+                </TouchableOpacity>
+                {formErrors.dueDate && <Text style={styles.errorText}>{formErrors.dueDate}</Text>}
+              </View>
+
+              <View style={styles.formField}>
+                <Text style={styles.fieldLabel}>Description</Text>
+                <View style={styles.inputContainer}>
+                  <MaterialIcons name="description" size={20} color="#666" style={styles.inputIcon} />
+                  <TextInput
+                    style={[styles.formInput, styles.descriptionInput]}
+                    placeholder="Enter assignment description"
+                    value={assignmentDescription}
+                    onChangeText={setAssignmentDescription}
+                    multiline
+                    numberOfLines={4}
+                  />
+                </View>
+              </View>
+
+              {showDueDatePicker && (
+                <View style={styles.calendarContainer}>
+                  <Calendar
+                    onDayPress={handleDueDateSelect}
+                    markedDates={{
+                      [assignmentDueDate]: {selected: true, selectedColor: '#1a1a1a'}
+                    }}
+                    minDate={new Date().toISOString().split('T')[0]}
+                    theme={{
+                      selectedDayBackgroundColor: '#1a1a1a',
+                      todayTextColor: '#1a1a1a',
+                      arrowColor: '#1a1a1a',
+                    }}
+                  />
+                </View>
+              )}
+
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={() => {
+                    setAssignmentModalVisible(false);
+                    setFormErrors({});
+                  }}
+                >
+                  <Text style={[styles.buttonText, styles.cancelText]}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.submitButton]}
+                  onPress={handleAddAssignment}
+                >
+                  <Text style={styles.buttonText}>Submit</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>  
     </View>
   );
@@ -867,48 +931,94 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 10,
     width: '90%',
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    paddingBottom: 10,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
+    color: '#1a1a1a',
   },
-  input: {
+  formField: {
+    marginBottom: 16,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 6,
+    color: '#333',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: '#ddd',
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 15,
+    borderRadius: 8,
+    backgroundColor: '#f9f9f9',
   },
-  reasonInput: {
-    height: 100,
+  inputIcon: {
+    marginHorizontal: 10,
+  },
+  formInput: {
+    flex: 1,
+    padding: 12,
+    fontSize: 16,
+    color: '#333',
+  },
+  descriptionInput: {
+    minHeight: 100,
     textAlignVertical: 'top',
   },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 5,
-    marginBottom: 15,
+  requiredStar: {
+    color: '#e53e3e',
+    fontWeight: 'bold',
   },
-  picker: {
-    height: 50,
+  errorText: {
+    color: '#e53e3e',
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
+  },
+  inputError: {
+    borderColor: '#e53e3e',
+    borderWidth: 1,
+  },
+  placeholderText: {
+    color: '#999',
+  },
+  calendarContainer: {
+    marginVertical: 10,
+    borderWidth: 1,
+    borderColor: '#eee',
+    borderRadius: 8,
+    overflow: 'hidden',
   },
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginTop: 24,
   },
   modalButton: {
     flex: 1,
-    padding: 12,
-    borderRadius: 5,
+    padding: 16,
+    borderRadius: 8,
     marginHorizontal: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   submitButton: {
     backgroundColor: '#1a1a1a',
   },
   cancelButton: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#f5f5f5',
     borderWidth: 1,
     borderColor: '#ddd',
   },

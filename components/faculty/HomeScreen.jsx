@@ -62,6 +62,7 @@ const FacultyHomeScreen = () => {
       const fetchSchedule = async () => {
         try {
           const response = await axios.get(`${url}/api/faculty/schedule/${facultyId}`);
+          console.log(response.data);
           const weeklySchedule = response.data.schedule[0].weekly_schedule;
   
           const selectedDayName = new Date(selectedDate).toLocaleDateString('en-US', {
@@ -219,20 +220,28 @@ const FacultyHomeScreen = () => {
       </View>
 
       {/* Horizontal ScrollView for Classes */}
-      {selectedDate === todayDate && state.schedule.length > 0 && (
+      {selectedDate === todayDate && filteredSchedule.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-          {state.schedule.map((item, index) => (
+          {filteredSchedule.map((item, index) => (
             <Card key={index} style={styles.classCard}>
               <Card.Content>
                 <Text style={styles.classTime}>{item.duration}</Text>
                 <Text style={styles.classSubject}>{item.subject}</Text>
+                <Text style={styles.classInfo}>Class: {item.class_id}</Text>
                 <Pressable>
                   <Button
                     mode="contained"
                     style={styles.markButton}
                     onPress={() => {
-                      console.log(`Taking attendance for: ${item.subject}`);
-                      router.push('./markAttendance', { relativeToDirectory: true });
+                      console.log(`Taking attendance for: ${item.subject} in ${item.class_id}`);
+                      router.push({
+                        pathname: './markAttendance',
+                        params: { 
+                          subject_id: item.subject,
+                          class_id: item.class_id,
+                          duration: item.duration
+                        }
+                      });
                     }}
                   >
                     <Text style={styles.markText}>Mark Attendance</Text>
@@ -365,20 +374,24 @@ const styles = StyleSheet.create({
     width: 350, // Fixed width for each card
     marginHorizontal: 10, // Spacing between cards
     padding: 10,
-    backgroundColor: '#f5f5f5', // Light white color (not pure white)
+    backgroundColor: 'black',
     borderRadius: 8,
     elevation: 3, // Adds subtle shadow for better visual appearance
-    backgroundColor: 'black',
   },
   classTime: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#fff', // Same color as scheduleSubject
+    color: '#fff',
     marginBottom: 5,
   },
   classSubject: {
     fontSize: 14,
-    color: '#fff', // Same color as scheduleSubject
+    color: '#fff',
+    marginBottom: 5,
+  },
+  classInfo: {
+    fontSize: 12,
+    color: '#ddd',
     marginBottom: 10,
   },
   todayDateItem: {

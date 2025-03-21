@@ -16,21 +16,21 @@ export default function StudentProfileScreen() {
   const [scrollY] = useState(new Animated.Value(0)); // Track scrolling
 
   const profile = {
-    name: "John Doe",
-    rollNumber: "210520201234",
+    name: "Hanok Erugurala",
+    rollNumber: "21B81A05T2",
     avatar: "https://i.pravatar.cc/150?img=3",
     department: "B.Tech. Information Technology",
     semester: 7,
     cgpa: 7.5,
-    academicYear: "2020 - 2024",
-    dob: "1st Jan 2002",
+    academicYear: "2021 - 2025",
+    dob: "5st Jan 2002",
     gender: "Male",
-    contactNumber: "123456790",
-    email: "abc123@gmail.com",
-    address: "12, abc street, defgh, jklm - 123456",
-    branch: "Information Technology",
-    college: "Department of Engineering",
-    courseDuration: "Sep 2020 - June 2024",
+    contactNumber: "7981455290",
+    email: "samrathreddy04@gmail.com",
+    address: "Mangalpally, Hyderabad",
+    branch: "Computer Science and Engineering",
+    college: "CVR College of Engineering and Technology",
+    courseDuration: "Sep 2021 - June 2025",
   };
 
   // Replace avatarSize with avatarStyle

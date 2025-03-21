@@ -1,11 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View
 } from "react-native";
 import { Calendar } from "react-native-calendars";
 import { LineChart } from "react-native-gifted-charts";

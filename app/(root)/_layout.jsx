@@ -1,19 +1,53 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
+import { DrawerContentScrollView } from '@react-navigation/drawer';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect, SplashScreen, router } from 'expo-router';
 import { Drawer } from 'expo-router/drawer';
 import * as SecureStore from 'expo-secure-store';
 import { useEffect, useState } from 'react';
-import { Alert, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Avatar, IconButton, Provider as PaperProvider } from 'react-native-paper';
+import { Alert, Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Divider, IconButton, Provider as PaperProvider } from 'react-native-paper';
 
 import { useSession } from '@/hooks/session';
 
 SplashScreen.preventAutoHideAsync();
 
+const { width, height } = Dimensions.get('window');
+
+// Custom drawer item component for better styling
+const CustomDrawerItem = ({ icon, label, onPress, isActive = false }) => {
+  return (
+    <TouchableOpacity 
+      style={[styles.customDrawerItem, isActive && styles.customDrawerItemActive]} 
+      onPress={onPress}
+    >
+      <View style={[styles.iconContainer, isActive && styles.iconContainerActive]}>
+        <MaterialCommunityIcons 
+          name={icon} 
+          size={22} 
+          color={isActive ? '#fff' : '#bbb'} 
+        />
+      </View>
+      <Text style={[styles.drawerItemLabel, isActive && styles.drawerItemLabelActive]}>
+        {label}
+      </Text>
+      {isActive && <View style={styles.activeIndicator} />}
+    </TouchableOpacity>
+  );
+};
+
+// Menu category component
+const MenuCategory = ({ title }) => (
+  <View style={styles.menuCategory}>
+    <Text style={styles.menuCategoryText}>{title}</Text>
+  </View>
+);
+
 export default function RootLayout() {
   const { session, isLoading, signOut } = useSession();
   const [userProfile, setUserProfile] = useState(null);
+  const [activeScreen, setActiveScreen] = useState('home');
 
   useEffect(() => {
     if (!isLoading) {
@@ -60,35 +94,125 @@ export default function RootLayout() {
       ]);
     };
 
+    const navigateTo = (routeName, screenName) => {
+      setActiveScreen(screenName);
+      router.push(routeName);
+      props.navigation.closeDrawer();
+    };
+
     return (
-      <DrawerContentScrollView {...props} contentContainerStyle={styles.drawerContent}>
-        <StatusBar backgroundColor="#1a1a1a" barStyle="light-content" />
+      <View style={styles.drawerMainContainer}>
+        {/* Top Banner */}
+        <LinearGradient
+          colors={['#4158D0', '#C850C0']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.drawerBanner}
+        >
+          <View style={styles.appBranding}>
+            <MaterialCommunityIcons name="school" size={32} color="#fff" />
+            <Text style={styles.appName}>UniConnect</Text>
+          </View>
+          <Text style={styles.appTagline}>Your Campus Companion</Text>
+        </LinearGradient>
 
-        {/* Profile Section */}
-        {userProfile && (
-          <TouchableOpacity
-            style={styles.profileContainer}
-            onPress={() => router.push('/profile')}
+       
+
+        {/* Menu Items */}
+        <DrawerContentScrollView 
+          {...props} 
+          contentContainerStyle={styles.drawerContent}
+          showsVerticalScrollIndicator={false}
+        >
+
+          
+          {/* Main Navigation */}
+          <CustomDrawerItem 
+            icon="home-variant" 
+            label="Home" 
+            onPress={() => navigateTo('/(tabs)', 'home')}
+            isActive={activeScreen === 'home'}
+          />
+          
+          <CustomDrawerItem 
+            icon="bell-ring-outline" 
+            label="Notifications" 
+            onPress={() => navigateTo('/(root)/(tabs)/(dashboard)/notice', 'notifications')}
+            isActive={activeScreen === 'notifications'}
+          />
+
+          {/* Academic Section */}
+          <MenuCategory title="ACADEMICS" />
+          
+          <CustomDrawerItem 
+            icon="calendar-check" 
+            label="Attendance" 
+            onPress={() => navigateTo('/(root)/(tabs)/(dashboard)', 'attendance')}
+            isActive={activeScreen === 'attendance'}
+          />
+          
+          <CustomDrawerItem 
+            icon="clipboard-text-outline" 
+            label="Assignments" 
+            onPress={() => navigateTo('/(root)/(tabs)/(dashboard)/assignments', 'assignments')}
+            isActive={activeScreen === 'assignments'}
+          />
+          
+          <CustomDrawerItem 
+            icon="book-open-variant" 
+            label="Courses" 
+            onPress={() => navigateTo('/(root)/(tabs)/(dashboard)/courses', 'courses')}
+            isActive={activeScreen === 'courses'}
+          />
+
+          {/* Profile */}
+          <CustomDrawerItem 
+            icon="account-circle" 
+            label="Profile" 
+            onPress={() => navigateTo('/(root)/Profile', 'profile')}
+            isActive={activeScreen === 'profile'}
+          />
+
+          {/* Settings */}
+          <MenuCategory title="SETTINGS" />
+          
+          <CustomDrawerItem 
+            icon="cog-outline" 
+            label="Settings" 
+            onPress={() => navigateTo('/(root)/(tabs)/(dashboard)/settings', 'settings')}
+            isActive={activeScreen === 'settings'}
+          />
+          
+          <CustomDrawerItem 
+            icon="help-circle-outline" 
+            label="Help & Support" 
+            onPress={() => navigateTo('/(root)/(tabs)/(dashboard)/help', 'help')}
+            isActive={activeScreen === 'help'}
+          />
+        </DrawerContentScrollView>
+
+        {/* Bottom Section with Logout */}
+        <View style={styles.bottomSection}>
+          <Divider style={styles.divider} />
+          
+          <TouchableOpacity 
+            onPress={handleLogout} 
+            style={styles.logoutButton}
           >
-            <Avatar.Image
-              size={60}
-              source={{ uri: userProfile.avatar || 'https://i.pravatar.cc/150' }}
-            />
-            <View style={styles.profileText}>
-              <Text style={styles.profileName}>{userProfile.name}</Text>
-              <Text style={styles.profileRole}>{userProfile.role === 'faculty' ? 'Faculty' : 'Student'}</Text>
-            </View>
+            <LinearGradient
+              colors={['#FF416C', '#FF4B2B']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.logoutGradient}
+            >
+              <MaterialCommunityIcons name="logout-variant" size={22} color="#fff" />
+              <Text style={styles.logoutText}>Sign Out</Text>
+            </LinearGradient>
           </TouchableOpacity>
-        )}
-
-        <DrawerItemList {...props} />
-
-        <View style={styles.logoutContainer}>
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-            <Text style={styles.logoutText}>Logout</Text>
-          </TouchableOpacity>
+          
+          <Text style={styles.versionText}>UniConnect v1.0.0</Text>
         </View>
-      </DrawerContentScrollView>
+      </View>
     );
   }
 
@@ -97,11 +221,11 @@ export default function RootLayout() {
       <Drawer
         screenOptions={({ navigation }) => ({
           headerStyle: {
-            backgroundColor: '#1a1a1a',
+            backgroundColor: '#4158D0',
           },
           headerRight: () => (
             <IconButton
-              icon={() => <Ionicons name="notifications-circle" size={32} color="white" />}
+              icon={() => <Ionicons name="notifications" size={26} color="white" />}
               onPress={() => router.push('/(root)/(tabs)/(dashboard)/notice')}
               style={{ marginRight: 10 }}
             />
@@ -110,19 +234,21 @@ export default function RootLayout() {
             <IconButton
               icon="menu"
               iconColor="white"
-              size={28}
+              size={24}
               onPress={() => navigation.openDrawer()}
               style={{ marginLeft: 10 }}
             />
           ),
           drawerStyle: {
-            backgroundColor: '#1a1a1a',
-            width: 240,
+            backgroundColor: '#212130',
+            width: 300,
+            borderTopRightRadius: 20,
+            borderBottomRightRadius: 20,
           },
-          drawerActiveBackgroundColor: '#2196F3',
-          drawerActiveTintColor: '#fff',
-          drawerInactiveTintColor: '#aaa',
           headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: '600',
+          },
         })}
         drawerContent={(props) => <CustomDrawerContent {...props} />}
       >
@@ -131,7 +257,6 @@ export default function RootLayout() {
           options={{
             drawerLabel: 'Home',
             title: 'Attendance',
-            drawerInactiveBackgroundColor: '#1a1a1a',
           }}
         />
       </Drawer>
@@ -140,44 +265,190 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
-  drawerContent: {
+  drawerMainContainer: {
     flex: 1,
-    height: '100%',
+    backgroundColor: '#212130',
   },
-  profileContainer: {
+  drawerBanner: {
+    paddingTop: 50,
+    paddingBottom: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  appBranding: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#222',
-    marginBottom: 10,
-    borderRadius: 8,
+    marginBottom: 5,
   },
-  profileText: {
+  appName: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
+    letterSpacing: 1,
     marginLeft: 10,
+  },
+  appTagline: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 14,
+    letterSpacing: 0.5,
+  },
+  profileSection: {
+    backgroundColor: '#292937',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 5,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  profileWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  profileHeader: {
+    position: 'relative',
+  },
+  avatar: {
+    borderWidth: 2,
+    borderColor: '#6C63FF',
+    elevation: 5,
+    backgroundColor: '#212130',
+  },
+  statusIndicator: {
+    position: 'absolute',
+    bottom: 2,
+    right: 0,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#4CAF50',
+    borderWidth: 2,
+    borderColor: '#292937',
+  },
+  profileBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#6C63FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#292937',
+  },
+  profileDetails: {
+    marginLeft: 16,
+    flex: 1,
   },
   profileName: {
     fontSize: 18,
     color: '#fff',
     fontWeight: 'bold',
+    marginBottom: 2,
   },
   profileRole: {
     fontSize: 14,
     color: '#bbb',
   },
-  logoutContainer: {
-    marginTop: 'auto',
-    borderTopWidth: 1,
-    borderColor: '#ccc',
-    padding: 20,
+  drawerContent: {
+    paddingTop: 5,
+    paddingHorizontal: 16,
+  },
+  customDrawerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    marginVertical: 2,
+    position: 'relative',
+  },
+  customDrawerItemActive: {
+    backgroundColor: 'rgba(108, 99, 255, 0.15)',
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    marginRight: 12,
+  },
+  iconContainerActive: {
+    backgroundColor: '#6C63FF',
+  },
+  drawerItemLabel: {
+    fontSize: 16,
+    color: '#bbb',
+    flex: 1,
+  },
+  drawerItemLabelActive: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  activeIndicator: {
+    width: 4,
+    height: '70%',
+    backgroundColor: '#6C63FF',
+    borderRadius: 2,
+    position: 'absolute',
+    right: 0,
+  },
+  menuCategory: {
+    marginTop: 20,
+    marginBottom: 5,
+    paddingHorizontal: 10,
+  },
+  menuCategoryText: {
+    fontSize: 12,
+    color: '#6C63FF',
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+  divider: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    height: 1,
+    marginBottom: 16,
+  },
+  bottomSection: {
+    padding: 16,
+    paddingBottom: 24,
   },
   logoutButton: {
-    backgroundColor: '#f44336',
-    padding: 10,
-    borderRadius: 5,
+    borderRadius: 10,
+    overflow: 'hidden',
+    elevation: 5,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+  },
+  logoutGradient: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
   },
   logoutText: {
     color: '#fff',
     fontWeight: 'bold',
+    fontSize: 16,
+    marginLeft: 10,
+  },
+  versionText: {
+    color: 'rgba(255,255,255,0.3)',
+    fontSize: 12,
+    textAlign: 'center',
   },
 });
