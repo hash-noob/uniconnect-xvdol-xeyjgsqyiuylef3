@@ -256,7 +256,7 @@ export default function RootLayout() {
           name="(tabs)"
           options={{
             drawerLabel: 'Home',
-            title: 'Attendance',
+            title: 'UniConnect',
           }}
         />
       </Drawer>
