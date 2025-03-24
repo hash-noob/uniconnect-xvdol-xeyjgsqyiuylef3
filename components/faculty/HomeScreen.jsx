@@ -36,7 +36,10 @@ const FacultyHomeScreen = () => {
     fetchUserData();
   }, []);
 
-  const todayDate = new Date().toISOString().split('T')[0];
+  // Option 1: Using string operations to format date in IST
+  const todayDate = new Date(new Date().getTime() + (5.5 * 60 * 60 * 1000))
+    .toISOString()
+    .split('T')[0];
   const colors = ['#2196F3', '#4CAF50', '#9C27B0', '#FFC107', '#FF5722', '#00BCD4', '#FF9800', '#673AB7'];
   let usedColors = [];
 

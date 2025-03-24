@@ -9,8 +9,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
+  Image,
 } from 'react-native';
 import {Picker} from '@react-native-picker/picker'
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function Notice() {
   const [messages, setMessages] = useState([]);
@@ -18,13 +20,14 @@ export default function Notice() {
   const [recipient, setRecipient] = useState('Mentors');
 
   const handleSend = () => {
-    if (inputText.trim()) {
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        { id: uuidv4(), text: inputText, recipient },
-      ]);
-      setInputText('');
-    }
+    // Disabled for now since feature is in development
+    // if (inputText.trim()) {
+    //   setMessages((prevMessages) => [
+    //     ...prevMessages,
+    //     { id: uuidv4(), text: inputText, recipient },
+    //   ]);
+    //   setInputText('');
+    // }
   };
 
   const renderItem = ({ item }) => (
@@ -36,6 +39,15 @@ export default function Notice() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Development Overlay */}
+      <View style={styles.developmentOverlay}>
+        <MaterialCommunityIcons name="bell-ring-outline" size={120} color="rgba(0,0,0,0.05)" />
+        <View style={styles.developmentBanner}>
+          <MaterialCommunityIcons name="tools" size={24} color="#666" />
+          <Text style={styles.developmentText}>In Development</Text>
+        </View>
+      </View>
+
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -59,6 +71,7 @@ export default function Notice() {
               onValueChange={(itemValue) => setRecipient(itemValue)}
               style={styles.picker}
               mode="dropdown"
+              enabled={false} // Disabled since in development
             >
               <Picker.Item label="Mentor Students" value="Mentors" />
               <Picker.Item label="Class Students" value="Class" />
@@ -69,17 +82,19 @@ export default function Notice() {
         {/* Input and Send Button */}
         <View style={styles.inputContainer}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { opacity: 0.5 }]}
             placeholder={`Type your message to ${recipient}...`}
             value={inputText}
             onChangeText={setInputText}
             onSubmitEditing={handleSend}
             returnKeyType="send"
+            editable={false}
           />
           <TouchableOpacity
-            style={styles.sendButton}
+            style={[styles.sendButton, { opacity: 0.5 }]}
             onPress={handleSend}
             accessibilityLabel="Send message"
+            disabled={true}
           >
             <Text style={styles.sendButtonText}>Send</Text>
           </TouchableOpacity>
@@ -93,6 +108,36 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f8f8',
+  },
+  developmentOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    opacity: 0.95,
+    backgroundColor: 'rgba(248, 248, 248, 0.7)',
+  },
+  developmentBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    marginTop: 20,
+  },
+  developmentText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#666',
+    marginLeft: 8,
   },
   chatContainer: {
     flexGrow: 1,
@@ -135,6 +180,7 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
     borderRadius: 5,
     overflow: 'hidden',
+    opacity: 0.5,
   },
   picker: {
     flex: 1,

@@ -35,6 +35,9 @@ const SessionProvider = ({children})=>{
                 try{
                     console.log("Chcecking for credentials")
                 const value = await SecureStore.getItemAsync('userToken');
+                const token = await SecureStore.getItemAsync('userAuthToken');
+                console.log(value)
+                console.log(token)
                 if(!value)  return;
                     setSession(JSON.parse(value));
                 }
@@ -60,6 +63,7 @@ const SessionProvider = ({children})=>{
             });
 
             const { success, message, token, user } = response.data;
+            console.log(token)
             console.log(success + ": " + message)
             if (success) {
               // Store the session details in local storage
@@ -72,6 +76,7 @@ const SessionProvider = ({children})=>{
                 await SecureStore.setItemAsync('userId', user.id)
                 await SecureStore.setItemAsync('email', user.email)
                 await SecureStore.setItemAsync('role', user.role)
+                await SecureStore.setItemAsync('userAuthToken', token)
                 await SecureStore.setItemAsync('userToken', credentials)
               setError(null)
               return { success: true };
@@ -115,7 +120,12 @@ const SessionProvider = ({children})=>{
         setLoading(true)
         try{
             setSession(null);
+            // Clear all stored tokens and user data
             await SecureStore.deleteItemAsync('userToken');
+            await SecureStore.deleteItemAsync('userAuthToken');
+            await SecureStore.deleteItemAsync('userId');
+            await SecureStore.deleteItemAsync('email');
+            await SecureStore.deleteItemAsync('role');
             return true;
         }
         catch(error){
